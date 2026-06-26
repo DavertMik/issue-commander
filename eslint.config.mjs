@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // CommonJS Node launcher for `npx issue-commander` — not app source.
+    "bin/**",
   ]),
 ]);
 

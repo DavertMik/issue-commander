@@ -1,0 +1,117 @@
+"use client";
+
+import { Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MultiSelect } from "@/components/multi-select";
+import { SingleSearchCombo, MultiSearchCombo } from "@/components/search-combo";
+import { cn } from "@/lib/utils";
+import { isFilterActive, type PaneFilter, type StateFilter } from "@/lib/filters";
+
+const STATES: { id: StateFilter; label: string }[] = [
+  { id: "open", label: "Open" },
+  { id: "closed", label: "Closed" },
+  { id: "all", label: "All" },
+];
+
+interface Props {
+  filter: PaneFilter;
+  assignees: string[];
+  repos: string[];
+  statuses: string[];
+  showRepo: boolean;
+  matchCount: number;
+  totalCount: number;
+  onChange: (patch: Partial<PaneFilter>) => void;
+  onClear: () => void;
+}
+
+export function PaneFilterBar({
+  filter,
+  assignees,
+  repos,
+  statuses,
+  showRepo,
+  matchCount,
+  totalCount,
+  onChange,
+  onClear,
+}: Props) {
+  const active = isFilterActive(filter);
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-muted/20 px-2 py-1.5">
+      <div className="flex shrink-0 overflow-hidden rounded border border-input">
+        {STATES.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onChange({ state: s.id })}
+            className={cn(
+              "px-2 py-1 text-xs font-medium transition-colors",
+              filter.state === s.id ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative min-w-[8rem] flex-1">
+        <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={filter.search}
+          onChange={(e) => onChange({ search: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") e.currentTarget.blur();
+          }}
+          placeholder="Search title or #number…"
+          className="h-7 pl-7 text-sm"
+        />
+      </div>
+
+      <SingleSearchCombo
+        placeholder="All assignees"
+        searchPlaceholder="Search users…"
+        options={assignees.map((a) => ({ value: a, label: a }))}
+        value={filter.assignees[0] ?? null}
+        onChange={(v) => onChange({ assignees: v ? [v] : [] })}
+        className="h-7 w-40"
+      />
+
+      {showRepo && (
+        <MultiSearchCombo
+          placeholder="All repos"
+          searchPlaceholder="Search repos…"
+          options={repos.map((r) => ({ value: r, label: r }))}
+          selected={filter.repos}
+          onChange={(next) => onChange({ repos: next })}
+          className="h-7 w-40"
+        />
+      )}
+
+      {statuses.length > 0 && (
+        <MultiSelect
+          placeholder="All statuses"
+          options={statuses.map((s) => ({ value: s, label: s }))}
+          selected={filter.statuses}
+          onChange={(next) => onChange({ statuses: next })}
+          className="max-w-[10rem]"
+        />
+      )}
+
+      <span className={cn("shrink-0 font-mono text-xs tabular-nums", active ? "text-primary" : "text-muted-foreground")}>
+        {active ? `${matchCount}/${totalCount}` : totalCount}
+      </span>
+
+      {active && (
+        <button
+          type="button"
+          onClick={onClear}
+          title="Clear filters"
+          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      )}
+    </div>
+  );
+}
