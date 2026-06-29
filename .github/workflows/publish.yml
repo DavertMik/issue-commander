@@ -1,0 +1,43 @@
+name: Publish to npm
+
+# Publishes `issue-commander` to npm with build provenance whenever a GitHub Release is published.
+#
+# Setup (one-time):
+#   1. Add a repo secret `NPM_TOKEN` — an npm "Automation" (or granular publish) token.
+#   2. Bump the version in package.json, then create a GitHub Release (tag e.g. v0.1.0).
+# Provenance is attested via OIDC (`id-token: write`) — the package page will show a
+# "Built and signed on GitHub Actions" badge.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write # required for npm provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Build the Next.js app so the published tarball ships a ready-to-serve `.next`.
+      - run: pnpm build
+
+      # --ignore-scripts: we already built above, so skip the prepublishOnly rebuild.
+      - run: npm publish --provenance --access public --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

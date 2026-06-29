@@ -1,6 +1,11 @@
+<p align="center">
+  <img src="issue-commander-logo.png" alt="Issue Commander" width="200" />
+</p>
+
 # Issue Commander
 
-**A [Total Commander](https://www.ghisler.com/)–style two-pane manager for GitHub issues.**
+**A two-pane manager for GitHub issues in the tradition of the [orthodox file managers](https://en.wikipedia.org/wiki/Orthodox_file_manager)** —
+Norton Commander, Volkov Commander, Total Commander, FAR Manager, and Midnight Commander (`mc`).
 Point each pane at a **repository**, an **org-wide milestone**, or a **GitHub Project (V2)**, and
 triage with function keys (F3–F8) — like moving files in a file manager, but for issues. Everything
 is scoped to a single GitHub **organization**.
@@ -9,6 +14,10 @@ is scoped to a single GitHub **organization**.
 GITHUB_ORG=your-org npx issue-commander
 # → http://localhost:3000
 ```
+
+<p align="center">
+  <img src="issue-commander-screenshot.png" alt="Issue Commander — a milestone pane beside a project pane" width="900" />
+</p>
 
 ---
 
@@ -38,6 +47,16 @@ PORT=3002 GITHUB_ORG=acme npx issue-commander   # custom port
 Each pane independently points at a **source** and shows its issues in a dense, resizable table.
 You operate **from** the active pane **onto** the other pane (e.g. F6 moves the highlighted issue to
 whatever the opposite pane is showing).
+
+Each column below is one pane — the left points at a milestone, the right at a project board. Put the
+cursor on a row in the left pane and press **F6** to move that issue into the right pane's project:
+
+| 🏁&nbsp; `milestone: 42` · **F1**  | 📋&nbsp; `Project: Q3 Roadmap` · **F2** |
+| ---------------------------------- | --------------------------------------- |
+| `#812  Fix flaky upload test`      | `#640  Onboarding revamp    ● Todo`     |
+| `#815  Login throttling`  ◀ cursor | `#641  Billing page         ● In Progress` |
+| `#820  Stripe webhook retry`       | `#655  Dark mode            ● Done`     |
+| `#828  Rate-limit headers`         | `#660  CSV export           ● Todo`     |
 
 ### A pane can point at any of these sources
 

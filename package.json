@@ -13,6 +13,17 @@
     "cli"
   ],
   "license": "MIT",
+  "author": "DavertMik",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DavertMik/issue-commander.git"
+  },
+  "homepage": "https://github.com/DavertMik/issue-commander#readme",
+  "bugs": "https://github.com/DavertMik/issue-commander/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "bin": {
     "issue-commander": "bin/issue-commander.js"
   },
