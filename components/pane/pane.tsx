@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { contextColumn } from "@/lib/source";
-import { applyFilters, distinctAssignees, distinctRepos, distinctStatuses, type SortField } from "@/lib/filters";
+import { applyFilters, distinctAssignees, distinctBranches, distinctRepos, distinctStatuses, type SortField } from "@/lib/filters";
 import { PaneHeader } from "@/components/pane/pane-header";
 import { PaneFilterBar } from "@/components/pane/pane-filter-bar";
 import { IssueTable } from "@/components/pane/issue-table";
@@ -43,17 +43,20 @@ export function Pane({
   const setActive = useAppStore((s) => s.setActive);
   const setSelectedIndex = useAppStore((s) => s.setSelectedIndex);
   const setMode = useAppStore((s) => s.setMode);
+  const setView = useAppStore((s) => s.setView);
   const openSelector = useAppStore((s) => s.openSelector);
   const setFilter = useAppStore((s) => s.setFilter);
   const clearFilter = useAppStore((s) => s.clearFilter);
   const actions = useIssueActions();
 
   const allRows = query.rows;
+  const isPulls = pane.view === "pulls";
   const lastColumn = query.lastColumn ?? contextColumn(pane.source);
   const rows = useMemo(() => applyFilters(allRows, filter), [allRows, filter]);
   const assignees = useMemo(() => distinctAssignees(allRows), [allRows]);
   const repos = useMemo(() => distinctRepos(allRows), [allRows]);
   const statuses = useMemo(() => distinctStatuses(allRows), [allRows]);
+  const branches = useMemo(() => (isPulls ? distinctBranches(allRows) : []), [allRows, isPulls]);
 
   // Background preload: pull the next page every few seconds until fully loaded.
   // The manual "load more" sentinel stays available if the user scrolls faster.
@@ -151,15 +154,16 @@ export function Pane({
       );
     }
     if (rows.length === 0) {
+      const noun = isPulls ? "pull requests" : "issues";
       return allRows.length > 0 ? (
         <PaneMessage
           title="No matches"
-          hint="No loaded issues match the current filter."
+          hint={`No loaded ${noun} match the current filter.`}
           actionLabel="Clear filter"
           onAction={() => clearFilter(paneId)}
         />
       ) : (
-        <PaneMessage title="No issues" hint="This source has no issues." />
+        <PaneMessage title={isPulls ? "No pull requests" : "No issues"} hint={`This source has no ${noun}.`} />
       );
     }
 
@@ -168,6 +172,7 @@ export function Pane({
         rows={rows}
         paneId={paneId}
         lastColumn={lastColumn}
+        view={pane.view}
         selectedIndex={clampedIndex}
         active={active}
         flashedKeys={flashedKeys}
@@ -202,6 +207,9 @@ export function Pane({
           count={pane.source ? allRows.length : undefined}
           selectedCount={markedKeys.size}
           hotkey={hotkey}
+          view={pane.view}
+          showTabs={pane.source?.kind === "repo"}
+          onViewChange={(v) => setView(paneId, v)}
           onOpenSelector={() => openSelector(paneId)}
         />
       )}
@@ -211,7 +219,9 @@ export function Pane({
           assignees={assignees}
           repos={repos}
           statuses={statuses}
+          branches={branches}
           showRepo={lastColumn === "repo"}
+          view={pane.view}
           matchCount={rows.length}
           totalCount={allRows.length}
           onChange={(patch) => setFilter(paneId, patch)}

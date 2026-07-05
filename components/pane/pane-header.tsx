@@ -3,7 +3,7 @@
 import { Folder, Flag, History, LayoutGrid, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sourceLabel } from "@/lib/source";
-import type { PaneSource } from "@/lib/types";
+import type { PaneSource, PaneView } from "@/lib/types";
 
 function KindIcon({ source }: { source: PaneSource | null }) {
   const cls = "size-4 shrink-0";
@@ -13,16 +13,24 @@ function KindIcon({ source }: { source: PaneSource | null }) {
   return <Folder className={cls} />;
 }
 
+const VIEW_TABS: { id: PaneView; label: string }[] = [
+  { id: "issues", label: "Issues" },
+  { id: "pulls", label: "Pull Requests" },
+];
+
 interface Props {
   source: PaneSource | null;
   active: boolean;
   count?: number;
   selectedCount?: number;
   hotkey: string;
+  view: PaneView;
+  showTabs: boolean;
+  onViewChange: (v: PaneView) => void;
   onOpenSelector: () => void;
 }
 
-export function PaneHeader({ source, active, count, selectedCount, hotkey, onOpenSelector }: Props) {
+export function PaneHeader({ source, active, count, selectedCount, hotkey, view, showTabs, onViewChange, onOpenSelector }: Props) {
   // Only the title and the chevron open the source selector — clicking the count/badges does not.
   return (
     <div
@@ -40,6 +48,25 @@ export function PaneHeader({ source, active, count, selectedCount, hotkey, onOpe
         <KindIcon source={source} />
         <span className="truncate font-semibold">{sourceLabel(source)}</span>
       </button>
+      {showTabs && (
+        <div className="flex shrink-0 overflow-hidden rounded border border-input">
+          {VIEW_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onViewChange(t.id)}
+              className={cn(
+                "px-2 py-0.5 text-xs font-medium transition-colors",
+                view === t.id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
       {selectedCount != null && selectedCount > 0 && (
         <span className="ml-auto rounded bg-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-300 tabular-nums">
           {selectedCount} ✓

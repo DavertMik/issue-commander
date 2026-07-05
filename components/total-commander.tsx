@@ -19,7 +19,10 @@ import { useIssueActions } from "@/hooks/use-issue-mutations";
 import { canCopy, canMove } from "@/lib/transfer";
 import { applyFilters, emptyFilter, type PaneFilter } from "@/lib/filters";
 import type { ActionId } from "@/lib/hotkeys";
-import type { IssueRow, PaneSource, RepoRef } from "@/lib/types";
+import type { IssueRow, PaneSource, PaneView, RepoRef } from "@/lib/types";
+
+// Issue-only mutations: disabled in the PR view (F3 preview is allowed — it's read-only).
+const PR_DISABLED_ACTIONS = new Set<ActionId>(["edit", "copy", "move", "editIssue", "close", "quickAssign"]);
 
 interface PreviewTarget {
   repo: RepoRef;
@@ -41,28 +44,37 @@ export function TotalCommander({ org }: { org: string | null }) {
   const actions = useIssueActions();
   const qc = useQueryClient();
 
-  const q1 = useIssues(panes.pane1.source, filters.pane1.state);
-  const q2 = useIssues(panes.pane2.source, filters.pane2.state);
+  const q1 = useIssues(panes.pane1.source, filters.pane1.state, panes.pane1.view);
+  const q2 = useIssues(panes.pane2.source, filters.pane2.state, panes.pane2.view);
 
   // Filtered rows drive navigation, selection, and the footer so they match what each pane shows.
   const rows1 = useMemo(() => applyFilters(q1.rows, filters.pane1), [q1.rows, filters.pane1]);
   const rows2 = useMemo(() => applyFilters(q2.rows, filters.pane2), [q2.rows, filters.pane2]);
 
-  // ----- persist pane sources + filters to localStorage -----
+  // ----- persist pane sources + views + filters to localStorage -----
   const setSource = useAppStore((s) => s.setSource);
   const setFilter = useAppStore((s) => s.setFilter);
+  const setView = useAppStore((s) => s.setView);
   const p1src = panes.pane1.source;
   const p2src = panes.pane2.source;
+  const p1view = panes.pane1.view;
+  const p2view = panes.pane2.view;
   const firstSave = useRef(true);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SOURCES_KEY);
       if (raw) {
-        const saved = JSON.parse(raw) as { pane1?: PaneSource | null; pane2?: PaneSource | null };
-        // Restore sources first (setSource resets that pane's filter), then restore filters.
+        const saved = JSON.parse(raw) as {
+          pane1?: PaneSource | null;
+          pane2?: PaneSource | null;
+          views?: { pane1?: PaneView; pane2?: PaneView };
+        };
+        // Restore sources first (setSource resets that pane's view + filter), then views, then filters.
         if (saved.pane1) setSource("pane1", saved.pane1);
         if (saved.pane2) setSource("pane2", saved.pane2);
+        if (saved.views?.pane1 && saved.pane1?.kind === "repo") setView("pane1", saved.views.pane1);
+        if (saved.views?.pane2 && saved.pane2?.kind === "repo") setView("pane2", saved.views.pane2);
       }
       const rawF = localStorage.getItem(FILTERS_KEY);
       if (rawF) {
@@ -73,7 +85,7 @@ export function TotalCommander({ org }: { org: string | null }) {
     } catch {
       // ignore malformed/unavailable storage
     }
-  }, [setSource, setFilter]);
+  }, [setSource, setView, setFilter]);
 
   useEffect(() => {
     // Skip the initial mount write so we don't clobber saved values before restore.
@@ -82,12 +94,15 @@ export function TotalCommander({ org }: { org: string | null }) {
       return;
     }
     try {
-      localStorage.setItem(SOURCES_KEY, JSON.stringify({ pane1: p1src, pane2: p2src }));
+      localStorage.setItem(
+        SOURCES_KEY,
+        JSON.stringify({ pane1: p1src, pane2: p2src, views: { pane1: p1view, pane2: p2view } }),
+      );
       localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
     } catch {
       // ignore
     }
-  }, [p1src, p2src, filters]);
+  }, [p1src, p2src, p1view, p2view, filters]);
 
   // ----- persist user defaults (settings) to localStorage -----
   const config = useAppStore((s) => s.config);
@@ -141,6 +156,9 @@ export function TotalCommander({ org }: { org: string | null }) {
       const row = onSentinel ? undefined : activeRows[idx];
       const activeSource = st.panes[activeId].source;
       const oppSource = st.panes[oppId].source;
+
+      // The PR view is browse-only — issue mutations don't apply to pull requests.
+      if (st.panes[activeId].view === "pulls" && PR_DISABLED_ACTIONS.has(a)) return;
 
       // Bulk ops act on the active pane's selection, falling back to the highlighted row.
       const selectedKeys = st.selected[activeId];
@@ -292,10 +310,11 @@ export function TotalCommander({ org }: { org: string | null }) {
   useEffect(() => {
     if (!activeRow) return;
     const { repo, number } = activeRow;
+    const isPr = !!activeRow.pr;
     const t = setTimeout(() => {
       void qc.prefetchQuery({
         queryKey: ["issueDetail", repo.owner, repo.name, number],
-        queryFn: () => api.issueDetail(repo.owner, repo.name, number),
+        queryFn: () => api.issueDetail(repo.owner, repo.name, number, isPr),
         staleTime: 60_000,
       });
     }, 200);
@@ -329,19 +348,22 @@ export function TotalCommander({ org }: { org: string | null }) {
   const previewTarget2 =
     panes.pane2.mode === "preview" || panes.pane2.mode === "edit" ? previewTargetFor("pane2") : null;
 
+  // The PR view is browse-only, so the issue-mutation function keys are disabled there.
+  const activeIsPulls = panes[active].view === "pulls";
+  const prReason = "Not available in the Pull Requests view";
   const footerKeys: FnKey[] = [
     { hotkey: "F3", label: "View", onClick: () => runAction("preview"), disabled: !activeRow },
-    { hotkey: "F4", label: "Edit", onClick: () => runAction("edit"), disabled: !activeRow },
-    { hotkey: "F5", label: `Copy${suffix}`, onClick: () => runAction("copy"), disabled: !footerRow || !copyRes.ok, reason: copyRes.reason },
-    { hotkey: "F6", label: `Move${suffix}`, onClick: () => runAction("move"), disabled: !footerRow || !moveRes.ok, reason: moveRes.reason },
+    { hotkey: "F4", label: "Edit", onClick: () => runAction("edit"), disabled: !activeRow || activeIsPulls, reason: activeIsPulls ? prReason : undefined },
+    { hotkey: "F5", label: `Copy${suffix}`, onClick: () => runAction("copy"), disabled: !footerRow || activeIsPulls || !copyRes.ok, reason: activeIsPulls ? prReason : copyRes.reason },
+    { hotkey: "F6", label: `Move${suffix}`, onClick: () => runAction("move"), disabled: !footerRow || activeIsPulls || !moveRes.ok, reason: activeIsPulls ? prReason : moveRes.reason },
     {
       hotkey: "F7",
       label: "Fields",
       onClick: () => runAction("editIssue"),
-      disabled: !activeRow,
-      reason: "Edit assignees · milestone · status · labels (Space)",
+      disabled: !activeRow || activeIsPulls,
+      reason: activeIsPulls ? prReason : "Edit assignees · milestone · status · labels (Space)",
     },
-    { hotkey: "F8", label: `Close${suffix}`, onClick: () => runAction("close"), disabled: !footerRow },
+    { hotkey: "F8", label: `Close${suffix}`, onClick: () => runAction("close"), disabled: !footerRow || activeIsPulls, reason: activeIsPulls ? prReason : undefined },
   ];
 
   if (!org) {

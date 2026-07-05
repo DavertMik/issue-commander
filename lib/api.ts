@@ -56,8 +56,8 @@ export const api = {
   listIssues: (query: Record<string, string>) =>
     req<PaneListResult>(`/api/issues?${new URLSearchParams(query).toString()}`),
 
-  issueDetail: (owner: string, repo: string, number: number) =>
-    req<IssueDetail>(`/api/issues/${owner}/${repo}/${number}`),
+  issueDetail: (owner: string, repo: string, number: number, isPr = false) =>
+    req<IssueDetail>(`/api/issues/${owner}/${repo}/${number}${isPr ? "?kind=pr" : ""}`),
 
   addComment: (owner: string, repo: string, number: number, body: string) =>
     withRetry(() =>

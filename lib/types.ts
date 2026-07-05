@@ -35,6 +35,18 @@ export interface ProjectStatus {
   multiple?: boolean; // issue belongs to more than one project (we show the first)
 }
 
+/** Pull-request-only fields; present (non-null) only on rows from a "pulls" source. */
+export interface PullMeta {
+  merged: boolean;
+  mergedAt: string | null; // ISO timestamp, null unless merged
+  baseRef: string; // target branch the PR merges into
+  headRef: string; // source branch
+  draft: boolean;
+}
+
+/** Derived PR status shown in the PR view (issues only ever have open/closed). */
+export type PrStatus = "open" | "closed" | "merged";
+
 /** The single row type every source maps into. */
 export interface IssueRow {
   number: number;
@@ -49,6 +61,7 @@ export interface IssueRow {
   type?: string | null; // org-level Issue Type name (Bug / Feature / Task …), if set
   projectItemId?: string; // ProjectV2Item id (PVTI_...), present only for project sources
   projectStatus?: ProjectStatus | null; // the issue's project Status (first project), if any
+  pr?: PullMeta | null; // present only for pull-request rows (kind: "pulls")
 }
 
 /**
@@ -63,6 +76,9 @@ export type PaneSource =
   | { kind: "recent" }; // org issues you're involved in, most-recently-updated first
 
 export type SourceKind = PaneSource["kind"];
+
+/** A repo pane can show its issues or its pull requests (header tab toggle). */
+export type PaneView = "issues" | "pulls";
 
 /** User defaults (persisted to localStorage) used to pre-fill new-issue creation. */
 export interface AppConfig {
@@ -138,6 +154,7 @@ export interface RelatedIssue {
   state: IssueState;
   url: string;
   repo: string; // owner/name
+  isPR?: boolean; // a referenced pull request (used by "Mentioned" to fetch via the PR path)
 }
 
 /** A linked PR or cross-referenced issue. */
@@ -148,6 +165,18 @@ export interface LinkedRef {
   repo: string; // owner/name
   state: "open" | "closed" | "merged";
   isPR: boolean;
+}
+
+/** Extra facts shown for a PR preview (no diff/code). */
+export interface PrDetailMeta {
+  merged: boolean;
+  draft: boolean;
+  baseRef: string;
+  headRef: string;
+  commits: number;
+  changedFiles: number;
+  additions: number;
+  deletions: number;
 }
 
 export interface IssueDetail {
@@ -163,6 +192,8 @@ export interface IssueDetail {
   parent: RelatedIssue | null;
   children: RelatedIssue[];
   linked: LinkedRef[];
+  mentioned?: RelatedIssue[]; // issues/PRs linked by URL in the body or comments
+  pr?: PrDetailMeta | null; // present only when previewing a pull request
 }
 
 // ---- Mutation results ----

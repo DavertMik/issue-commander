@@ -1,7 +1,15 @@
 import { getOctokit } from "@/lib/github/client";
 import { getOrg } from "@/lib/github/org";
 import { enrichProjectStatus, listProjectItems, resolveProjectId } from "@/lib/github/graphql";
-import { isPullRequest, mapRestIssue, mapSearchIssue, type RestIssue, type SearchIssue } from "@/lib/domain/mappers";
+import {
+  isPullRequest,
+  mapRestIssue,
+  mapRestPull,
+  mapSearchIssue,
+  type RestIssue,
+  type RestPull,
+  type SearchIssue,
+} from "@/lib/domain/mappers";
 import type { ListIssuesQuery } from "@/lib/validation/schemas";
 import type { IssueRow, IssueState, PaneListResult } from "@/lib/types";
 
@@ -43,6 +51,31 @@ export async function listIssues(query: ListIssuesQuery): Promise<PaneListResult
       lastColumn: "milestone",
       source: { kind: "repo", repo: query.repo, state: asState(state) },
       pageInfo: restPageInfo(page, issues.length),
+    };
+  }
+
+  if (query.kind === "pulls") {
+    // A repo pane's Pull Requests view — GitHub's dedicated pulls endpoint carries merge
+    // state + branch refs (the issues endpoint doesn't). Sort by recent activity so freshly
+    // merged PRs load first, making the merged-date filter useful without deep scrolling.
+    const state = query.state ?? "open";
+    const page = query.cursor ? parseInt(query.cursor, 10) : 1;
+    const res = await octokit.rest.pulls.list({
+      owner,
+      repo: query.repo,
+      state,
+      sort: "updated",
+      direction: "desc",
+      per_page: PER_PAGE,
+      page,
+    });
+    const pulls = res.data as unknown as RestPull[];
+    const rows = pulls.map((p) => mapRestPull(p, { owner, name: query.repo }));
+    return {
+      rows,
+      lastColumn: "milestone", // unused in PR view (the table renders a Branch column instead)
+      source: { kind: "repo", repo: query.repo, state: asState(state) },
+      pageInfo: restPageInfo(page, pulls.length),
     };
   }
 

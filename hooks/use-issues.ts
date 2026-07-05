@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 import { sourceKey, sourceToQuery } from "@/lib/source";
 import { useAppStore } from "@/hooks/use-app-store";
 import type { StateFilter } from "@/lib/filters";
-import type { IssueRow, LastColumn, PaneSource } from "@/lib/types";
+import type { IssueRow, LastColumn, PaneSource, PaneView } from "@/lib/types";
 
 /** Normalized shape consumers use — hides the infinite-query paging internals. */
 export interface IssuesQuery {
@@ -19,15 +19,20 @@ export interface IssuesQuery {
   fetchNextPage: () => void;
 }
 
-export function useIssues(source: PaneSource | null, state: StateFilter = "open"): IssuesQuery {
+export function useIssues(
+  source: PaneSource | null,
+  state: StateFilter = "open",
+  view: PaneView = "issues",
+): IssuesQuery {
   // The default project decides which project's Status enrichment attaches (repo/milestone/recent panes).
   const preferredProject = useAppStore((s) => s.config.defaultProject);
-  const usePreferred = preferredProject != null && source?.kind !== "project";
+  // PR rows have no project Status column, so skip the enrichment for the pulls view.
+  const usePreferred = preferredProject != null && source?.kind !== "project" && view !== "pulls";
   const q = useInfiniteQuery({
-    queryKey: ["issues", sourceKey(source, state), usePreferred ? preferredProject : null],
+    queryKey: ["issues", sourceKey(source, state, view), usePreferred ? preferredProject : null],
     queryFn: ({ pageParam }) =>
       api.listIssues({
-        ...sourceToQuery(source as PaneSource, state),
+        ...sourceToQuery(source as PaneSource, state, view),
         ...(usePreferred ? { preferredProject: String(preferredProject) } : {}),
         ...(pageParam ? { cursor: pageParam } : {}),
       }),
