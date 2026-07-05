@@ -31,6 +31,12 @@ export const listIssuesQuerySchema = z.discriminatedUnion("kind", [
     cursor: z.string().optional(),
     preferredProject: z.coerce.number().int().positive().optional(),
   }),
+  z.object({
+    kind: z.literal("pulls"),
+    repo: z.string().min(1),
+    state: issueListStateSchema.optional(),
+    cursor: z.string().optional(),
+  }),
 ]);
 export type ListIssuesQuery = z.infer<typeof listIssuesQuerySchema>;
 

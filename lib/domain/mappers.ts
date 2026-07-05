@@ -52,6 +52,49 @@ export function isPullRequest(issue: RestIssue): boolean {
   return issue.pull_request != null;
 }
 
+// ---- REST pulls (octokit.rest.pulls.list) ----
+
+export interface RestPull {
+  number: number;
+  title: string;
+  state: string; // open | closed
+  html_url: string;
+  node_id: string;
+  merged_at?: string | null;
+  draft?: boolean | null;
+  base: { ref: string };
+  head: { ref: string };
+  user?: { login: string; avatar_url: string } | null; // PR author
+  assignees?: Array<{ login: string; avatar_url: string }> | null;
+  labels?: Array<string | { name?: string | null; color?: string | null }>;
+  milestone?: { number: number; title: string } | null;
+}
+
+export function mapRestPull(pull: RestPull, repo: RepoRef): IssueRow {
+  const merged = pull.merged_at != null;
+  // PRs rarely have explicit assignees; show the author in the person column instead.
+  const author = pull.user ? { login: pull.user.login, avatarUrl: pull.user.avatar_url } : null;
+  return {
+    number: pull.number,
+    title: pull.title,
+    state: pull.state === "closed" ? "closed" : "open",
+    assignees: author ? [author] : [],
+    labels: (pull.labels ?? []).map(toLabel).filter((l): l is Label => l !== null),
+    milestone: pull.milestone ? { number: pull.milestone.number, title: pull.milestone.title } : null,
+    repo,
+    htmlUrl: pull.html_url,
+    nodeId: pull.node_id,
+    type: null,
+    pr: {
+      merged,
+      mergedAt: pull.merged_at ?? null,
+      baseRef: pull.base.ref,
+      headRef: pull.head.ref,
+      draft: !!pull.draft,
+    },
+  };
+}
+
 // ---- REST search results (octokit.rest.search.issuesAndPullRequests) ----
 
 export interface SearchIssue {

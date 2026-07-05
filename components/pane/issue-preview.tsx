@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Check, Copy, Pencil } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Check, ChevronDown, Copy, FileText, GitCommitHorizontal, GitMerge, Loader2, Pencil } from "lucide-react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -14,12 +14,13 @@ import { LabelBadges } from "@/components/labels";
 import { AssigneeAvatars } from "@/components/assignees";
 import { MentionTextarea } from "@/components/pane/mention-textarea";
 import { PaneMessage } from "@/components/pane/pane-empty";
+import { TimeLabel } from "@/components/time-label";
 import { useIssueDetail } from "@/hooks/use-comments";
 import { useRepoOptions } from "@/hooks/use-repo-options";
 import { useAppStore } from "@/hooks/use-app-store";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { IssueComment, IssueDetail, IssueRow, LinkedRef, ProjectStatus, RelatedIssue, RepoRef } from "@/lib/types";
+import type { IssueComment, IssueDetail, IssueRow, LinkedRef, PrDetailMeta, ProjectStatus, RelatedIssue, RepoRef } from "@/lib/types";
 
 /** Route GitHub-hosted (auth/hotlink-protected) image URLs through our proxy. */
 function proxyImage(src?: string): string | undefined {
@@ -90,49 +91,6 @@ function Markdown({ children }: { children: string }) {
   );
 }
 
-const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ["year", 31536000],
-  ["month", 2592000],
-  ["week", 604800],
-  ["day", 86400],
-  ["hour", 3600],
-  ["minute", 60],
-  ["second", 1],
-];
-
-/** Localized "3 days ago" / "in 2 months". */
-function relativeTime(iso: string): string {
-  const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
-  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-  for (const [unit, secs] of UNITS) {
-    if (Math.abs(diffSec) >= secs || unit === "second") {
-      return rtf.format(Math.round(diffSec / secs), unit);
-    }
-  }
-  return "";
-}
-
-/** Date in the current locale; clicking toggles the GLOBAL absolute/relative mode. */
-function TimeLabel({ iso }: { iso: string }) {
-  const relative = useAppStore((s) => s.relativeDates);
-  const toggle = useAppStore((s) => s.toggleRelativeDates);
-  const absolute = new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  const rel = relativeTime(iso);
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        toggle();
-      }}
-      title={relative ? absolute : rel}
-      className="cursor-pointer hover:text-foreground hover:underline"
-    >
-      {relative ? rel : absolute}
-    </button>
-  );
-}
-
 /** Copy a ticket URL to the clipboard, with a visible copy icon + brief confirm. */
 function CopyLinkButton({ url, className }: { url: string; className?: string }) {
   const [copied, setCopied] = useState(false);
@@ -157,22 +115,87 @@ function CopyLinkButton({ url, className }: { url: string; className?: string })
   );
 }
 
-function RelatedItem({ rel, currentRepo }: { rel: RelatedIssue; currentRepo: string }) {
-  const relRepoName = rel.repo.split("/")[1] ?? rel.repo;
-  const label = relRepoName !== currentRepo ? `${relRepoName}#${rel.number}` : `#${rel.number}`;
+// A ticket row that expands inline (chevron) to load and render its full description. No modal.
+function ExpandableTicket({
+  url,
+  repo,
+  number,
+  title,
+  isPr,
+  currentRepo,
+  dotClass,
+  kindBadge,
+}: {
+  url: string;
+  repo: string; // owner/name
+  number: number;
+  title: string;
+  isPr: boolean;
+  currentRepo: string;
+  dotClass: string;
+  kindBadge?: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [owner, name] = repo.split("/");
+  // Fetches only while expanded (repo=null disables the query); cached across collapse/expand.
+  const { data, isError } = useIssueDetail(expanded ? { owner, name } : null, expanded ? number : null, isPr);
+  const relRepoName = name ?? repo;
+  const label = relRepoName !== currentRepo ? `${relRepoName}#${number}` : `#${number}`;
   return (
-    <div className="flex w-full items-center gap-2 rounded px-2 py-1 hover:bg-muted">
-      <button
-        type="button"
-        onClick={() => window.open(rel.url, "_blank", "noopener,noreferrer")}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
-      >
-        <span className={cn("size-2 shrink-0 rounded-full", rel.state === "closed" ? "bg-violet-400" : "bg-emerald-400")} />
-        <span className="shrink-0 font-mono text-xs text-muted-foreground">{label}</span>
-        <span className="truncate">{rel.title}</span>
-      </button>
-      <CopyLinkButton url={rel.url} />
+    <div>
+      <div className="flex w-full items-center gap-1.5 rounded px-1 py-1 hover:bg-muted">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          title={expanded ? "Collapse" : "Show description"}
+          aria-expanded={expanded}
+          className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+        </button>
+        <button
+          type="button"
+          onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
+        >
+          <span className={cn("size-2 shrink-0 rounded-full", dotClass)} />
+          {kindBadge}
+          <span className="shrink-0 font-mono text-xs text-muted-foreground">{label}</span>
+          <span className="truncate">{title}</span>
+        </button>
+        <CopyLinkButton url={url} />
+      </div>
+      {expanded && (
+        <div className="mb-1 ml-6 mr-1 rounded border border-border bg-muted/20 px-2 py-1.5">
+          {data ? (
+            <>
+              <AuthorLine login={data.author} avatarUrl={data.authorAvatarUrl} when={data.createdAt} />
+              <Markdown>{data.body || "_No description provided._"}</Markdown>
+            </>
+          ) : isError ? (
+            <p className="text-xs text-destructive">Couldn&apos;t load description.</p>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" /> Loading…
+            </div>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+function RelatedItem({ rel, currentRepo }: { rel: RelatedIssue; currentRepo: string }) {
+  return (
+    <ExpandableTicket
+      url={rel.url}
+      repo={rel.repo}
+      number={rel.number}
+      title={rel.title}
+      isPr={!!rel.isPR}
+      currentRepo={currentRepo}
+      dotClass={rel.state === "closed" ? "bg-violet-400" : "bg-emerald-400"}
+    />
   );
 }
 
@@ -207,27 +230,23 @@ function LinkedSection({ items, currentRepo }: { items: LinkedRef[]; currentRepo
       <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
         Linked PRs &amp; issues
       </div>
-      {items.map((l) => {
-        const relRepoName = l.repo.split("/")[1] ?? l.repo;
-        const label = relRepoName !== currentRepo ? `${relRepoName}#${l.number}` : `#${l.number}`;
-        return (
-          <div key={l.url} className="flex w-full items-center gap-2 rounded px-2 py-1 hover:bg-muted">
-            <button
-              type="button"
-              onClick={() => window.open(l.url, "_blank", "noopener,noreferrer")}
-              className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
-            >
-              <span className={cn("size-2 shrink-0 rounded-full", LINK_DOT[l.state])} />
-              <span className="shrink-0 rounded bg-muted px-1 font-mono text-[10px] uppercase text-muted-foreground">
-                {l.isPR ? "PR" : "issue"}
-              </span>
-              <span className="shrink-0 font-mono text-xs text-muted-foreground">{label}</span>
-              <span className="truncate">{l.title}</span>
-            </button>
-            <CopyLinkButton url={l.url} />
-          </div>
-        );
-      })}
+      {items.map((l) => (
+        <ExpandableTicket
+          key={l.url}
+          url={l.url}
+          repo={l.repo}
+          number={l.number}
+          title={l.title}
+          isPr={l.isPR}
+          currentRepo={currentRepo}
+          dotClass={LINK_DOT[l.state]}
+          kindBadge={
+            <span className="shrink-0 rounded bg-muted px-1 font-mono text-[10px] uppercase text-muted-foreground">
+              {l.isPR ? "PR" : "issue"}
+            </span>
+          }
+        />
+      ))}
     </div>
   );
 }
@@ -244,8 +263,24 @@ function StatusPill({ ps }: { ps?: ProjectStatus | null }) {
 }
 
 // Status · labels · assignees under the title; click to open the F7 quick-edit modal for this issue.
-function MetaBar({ row }: { row: IssueRow }) {
+// PRs are read-only here (no F7 edit, no project status) — just show labels + author.
+function MetaBar({ row, isPr }: { row: IssueRow; isPr: boolean }) {
   const openEdit = useAppStore((s) => s.openEdit);
+  const inner = (
+    <>
+      {!isPr && <StatusPill ps={row.projectStatus} />}
+      <span className="max-w-[22rem] overflow-hidden">
+        <LabelBadges labels={row.labels} max={4} />
+      </span>
+      <AssigneeAvatars assignees={row.assignees} max={3} />
+      {!isPr && (
+        <Pencil className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      )}
+    </>
+  );
+  if (isPr) {
+    return <div className="flex shrink-0 items-center justify-end gap-2 px-2 py-1">{inner}</div>;
+  }
   return (
     <div
       role="button"
@@ -260,12 +295,41 @@ function MetaBar({ row }: { row: IssueRow }) {
       }}
       className="group flex shrink-0 cursor-pointer items-center justify-end gap-2 rounded px-2 py-1 hover:bg-muted"
     >
-      <StatusPill ps={row.projectStatus} />
-      <span className="max-w-[22rem] overflow-hidden">
-        <LabelBadges labels={row.labels} max={4} />
+      {inner}
+    </div>
+  );
+}
+
+const PR_STATE_BADGE: Record<string, string> = {
+  merged: "border-violet-500/40 bg-violet-500/15 text-violet-300",
+  draft: "border-border bg-muted text-muted-foreground",
+  open: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300",
+  closed: "border-rose-500/40 bg-rose-500/15 text-rose-300",
+};
+
+// PR facts (no diff): branch flow, commit/file counts, additions/deletions, and state.
+function PrStatsBar({ pr, state }: { pr: PrDetailMeta; state: IssueDetail["state"] }) {
+  const key = pr.merged ? "merged" : pr.draft && state === "open" ? "draft" : state;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded border border-border bg-muted/20 p-2 text-xs text-muted-foreground">
+      <span className={cn("inline-flex items-center rounded border px-1.5 py-0.5 font-medium capitalize", PR_STATE_BADGE[key])}>
+        {key}
       </span>
-      <AssigneeAvatars assignees={row.assignees} max={3} />
-      <Pencil className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      <span className="inline-flex min-w-0 items-center gap-1 font-mono" title={`${pr.headRef} → ${pr.baseRef}`}>
+        <GitMerge className="size-3.5 shrink-0" />
+        <span className="truncate text-foreground/80">
+          {pr.headRef} → {pr.baseRef}
+        </span>
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <GitCommitHorizontal className="size-3.5" /> {pr.commits} {pr.commits === 1 ? "commit" : "commits"}
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <FileText className="size-3.5" /> {pr.changedFiles} {pr.changedFiles === 1 ? "file" : "files"}
+      </span>
+      <span className="font-mono">
+        <span className="text-emerald-400">+{pr.additions}</span> <span className="text-rose-400">−{pr.deletions}</span>
+      </span>
     </div>
   );
 }
@@ -348,9 +412,10 @@ export function IssuePreview({
   title: string;
   row?: IssueRow;
 }) {
+  const isPr = !!row?.pr;
   // keepPreviousData keeps the last-loaded ticket visible until the new one arrives — no skeleton.
   // While that stale ticket shows (isPlaceholderData), dim it so it reads as "not the cursor's ticket".
-  const { data, isError, error, isPlaceholderData } = useIssueDetail(repo, number);
+  const { data, isError, error, isPlaceholderData } = useIssueDetail(repo, number, isPr);
 
   return (
     <div className="flex h-full flex-col">
@@ -361,14 +426,14 @@ export function IssuePreview({
               <span>
                 {repo.name} · #{number}
               </span>
-              <CopyLinkButton url={`https://github.com/${repo.owner}/${repo.name}/issues/${number}`} />
+              <CopyLinkButton url={`https://github.com/${repo.owner}/${repo.name}/${isPr ? "pull" : "issues"}/${number}`} />
               <span className="opacity-70">· preview (F3 / Esc)</span>
             </div>
             <div className="truncate text-base font-semibold" title={title}>
               {title}
             </div>
           </div>
-          {row && <MetaBar row={row} />}
+          {row && <MetaBar row={row} isPr={isPr} />}
         </div>
       </div>
       <div
@@ -380,6 +445,7 @@ export function IssuePreview({
         {data ? (
           <>
             {data.parent && <RelatedSection heading="Parent" items={[data.parent]} currentRepo={repo.name} />}
+            {data.pr && <PrStatsBar pr={data.pr} state={data.state} />}
             <div className="mt-2 rounded border border-border p-2">
               <AuthorLine login={data.author} avatarUrl={data.authorAvatarUrl} when={data.createdAt} />
               <Markdown>{data.body || "_No description provided._"}</Markdown>
@@ -392,6 +458,9 @@ export function IssuePreview({
               />
             )}
             {data.linked.length > 0 && <LinkedSection items={data.linked} currentRepo={repo.name} />}
+            {data.mentioned && data.mentioned.length > 0 && (
+              <RelatedSection heading="Mentioned Issues" items={data.mentioned} currentRepo={repo.name} />
+            )}
             {data.comments.map((c, i) => (
               <div key={i} className="mt-2 rounded border border-border p-2">
                 <AuthorLine login={c.author} avatarUrl={c.authorAvatarUrl} when={c.createdAt} />

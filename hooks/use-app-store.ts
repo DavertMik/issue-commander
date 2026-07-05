@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { emptyFilter, type PaneFilter } from "@/lib/filters";
-import type { AppConfig, IssueRow, PaneSource } from "@/lib/types";
+import type { AppConfig, IssueRow, PaneSource, PaneView } from "@/lib/types";
+
+export type { PaneView } from "@/lib/types";
 
 const emptyConfig = (): AppConfig => ({ defaultRepository: null, defaultMilestone: null, defaultProject: null });
 
@@ -18,6 +20,8 @@ export interface PaneState {
   source: PaneSource | null;
   selectedIndex: number;
   mode: PaneMode;
+  /** Issues vs Pull Requests (repo panes only; forced to "issues" for other sources). */
+  view: PaneView;
   /** F4 buffer. */
   editDraft: string;
 }
@@ -63,6 +67,7 @@ interface AppState {
   setSelectedIndex: (p: PaneId, i: number) => void;
   moveSelection: (p: PaneId, delta: number, len: number) => void;
   setMode: (p: PaneId, m: PaneMode) => void;
+  setView: (p: PaneId, v: PaneView) => void;
   setEditDraft: (p: PaneId, v: string) => void;
   startPreview: (targetPane: PaneId) => void;
   clearPreview: (p: PaneId) => void;
@@ -92,6 +97,7 @@ const emptyPane = (): PaneState => ({
   source: null,
   selectedIndex: 0,
   mode: "list",
+  view: "issues",
   editDraft: "",
 });
 
@@ -170,7 +176,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   setSource: (p, source) =>
     set((s) => ({
-      ...patchPane(s, p, { source, selectedIndex: 0, mode: "list" }),
+      // A non-repo source has no PR tab, so reset the view along with the filter/selection.
+      ...patchPane(s, p, { source, selectedIndex: 0, mode: "list", view: "issues" }),
       selected: { ...s.selected, [p]: new Set<string>() },
       filters: { ...s.filters, [p]: emptyFilter() },
     })),
@@ -185,6 +192,7 @@ export const useAppStore = create<AppState>((set) => ({
     }),
 
   setMode: (p, mode) => set((s) => patchPane(s, p, { mode })),
+  setView: (p, view) => set((s) => patchPane(s, p, { view, selectedIndex: 0 })),
   setEditDraft: (p, editDraft) => set((s) => patchPane(s, p, { editDraft })),
 
   startPreview: (targetPane) => set((s) => patchPane(s, targetPane, { mode: "preview" })),

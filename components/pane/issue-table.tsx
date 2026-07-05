@@ -1,13 +1,27 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, CircleCheck, CircleDot, Loader2, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  CircleCheck,
+  CircleDot,
+  GitMerge,
+  GitPullRequest,
+  GitPullRequestClosed,
+  GitPullRequestDraft,
+  Loader2,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LabelBadges } from "@/components/labels";
 import { AssigneeAvatars } from "@/components/assignees";
+import { TimeLabel } from "@/components/time-label";
+import { prStatus } from "@/lib/source";
 import type { OpStatus, PaneId } from "@/hooks/use-app-store";
 import type { SortDir, SortField } from "@/lib/filters";
-import type { IssueRow, IssueState, LastColumn, ProjectStatus } from "@/lib/types";
+import type { IssueRow, IssueState, LastColumn, PaneView, ProjectStatus } from "@/lib/types";
 
 function OpIcon({ op }: { op: OpStatus }) {
   if (op === "pending") return <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" />;
@@ -35,6 +49,28 @@ function StateIcon({ state }: { state: IssueState }) {
   );
 }
 
+/** PR-flavored status icon for the # column: draft > merged > closed > open. */
+function PrStateIcon({ row }: { row: IssueRow }) {
+  if (row.pr?.draft && !row.pr.merged && row.state === "open")
+    return <GitPullRequestDraft className="size-4 shrink-0 text-muted-foreground" />;
+  const s = prStatus(row);
+  if (s === "merged") return <GitMerge className="size-4 shrink-0 text-violet-400" />;
+  if (s === "closed") return <GitPullRequestClosed className="size-4 shrink-0 text-rose-400" />;
+  return <GitPullRequest className="size-4 shrink-0 text-emerald-400" />;
+}
+
+/** Target branch (base ref) for a PR, e.g. "→ master". */
+function BranchCell({ row }: { row: IssueRow }) {
+  const base = row.pr?.baseRef;
+  if (!base) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="flex items-center gap-1 truncate font-mono text-xs" title={`${row.pr?.headRef ?? ""} → ${base}`}>
+      <GitMerge className="size-3 shrink-0 text-muted-foreground" />
+      <span className="truncate text-foreground/80">{base}</span>
+    </span>
+  );
+}
+
 function StatusCell({ ps }: { ps?: ProjectStatus | null }) {
   if (!ps) return <span className="text-muted-foreground">—</span>;
   const title = ps.multiple ? `${ps.projectTitle} (+ other projects)` : ps.projectTitle;
@@ -53,6 +89,7 @@ interface RowProps {
   row: IssueRow;
   index: number;
   lastColumn: LastColumn;
+  view: PaneView;
   selected: boolean;
   active: boolean;
   flashed: boolean;
@@ -63,7 +100,8 @@ interface RowProps {
 }
 
 // Memoized so Up/Down only re-renders the two rows whose `selected` changed.
-const Row = memo(function Row({ row, index, lastColumn, selected, active, flashed, marked, op, onSelect, onOpen }: RowProps) {
+const Row = memo(function Row({ row, index, lastColumn, view, selected, active, flashed, marked, op, onSelect, onOpen }: RowProps) {
+  const isPr = view === "pulls";
   return (
     <div
       data-index={index}
@@ -84,15 +122,15 @@ const Row = memo(function Row({ row, index, lastColumn, selected, active, flashe
       <div
         className={cn(
           "flex items-center justify-start gap-1 font-mono text-sm tabular-nums",
-          row.state === "closed" ? "text-muted-foreground" : "text-primary/90",
+          row.state === "closed" && !isPr ? "text-muted-foreground" : "text-primary/90",
         )}
       >
-        <StateIcon state={row.state} />
+        {isPr ? <PrStateIcon row={row} /> : <StateIcon state={row.state} />}
         <span className="truncate">{row.number}</span>
       </div>
       <div className="flex items-center gap-1.5 overflow-hidden text-sm" title={row.title}>
         {op && <OpIcon op={op} />}
-        <span className={cn("truncate", row.state === "closed" && "text-muted-foreground")}>{row.title}</span>
+        <span className={cn("truncate", row.state === "closed" && !isPr && "text-muted-foreground")}>{row.title}</span>
       </div>
       <div className="overflow-hidden">
         <AssigneeAvatars assignees={row.assignees} />
@@ -101,10 +139,20 @@ const Row = memo(function Row({ row, index, lastColumn, selected, active, flashe
         <LabelBadges labels={row.labels} />
       </div>
       <div className="overflow-hidden text-sm">
-        <StatusCell ps={row.projectStatus} />
+        {isPr ? <BranchCell row={row} /> : <StatusCell ps={row.projectStatus} />}
       </div>
-      <div className="truncate text-sm text-muted-foreground">
-        {lastColumn === "milestone" ? (row.milestone?.title ?? "—") : row.repo.name}
+      <div className="flex items-center overflow-hidden truncate text-sm text-muted-foreground">
+        {isPr ? (
+          row.pr?.mergedAt ? (
+            <TimeLabel iso={row.pr.mergedAt} className="cursor-pointer truncate text-xs hover:text-foreground hover:underline" />
+          ) : (
+            "—"
+          )
+        ) : lastColumn === "milestone" ? (
+          (row.milestone?.title ?? "—")
+        ) : (
+          row.repo.name
+        )}
       </div>
     </div>
   );
@@ -114,6 +162,7 @@ interface Props {
   rows: IssueRow[];
   paneId: PaneId;
   lastColumn: LastColumn;
+  view: PaneView;
   selectedIndex: number;
   active: boolean;
   flashedKeys: Set<string>;
@@ -190,6 +239,7 @@ export function IssueTable({
   rows,
   paneId,
   lastColumn,
+  view,
   selectedIndex,
   active,
   flashedKeys,
@@ -251,14 +301,22 @@ export function IssueTable({
       >
         <HeaderCell label="#" sort="number" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
         <HeaderCell label="Title" resizes="number" onResize={startResize} sort="title" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
-        <HeaderCell label="Assignee" resizes="title" onResize={startResize} sort="assignee" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
+        <HeaderCell label={view === "pulls" ? "Author" : "Assignee"} resizes="title" onResize={startResize} sort="assignee" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
         <HeaderCell label="Labels" resizes="assignee" onResize={startResize} />
-        <HeaderCell label="Status" resizes="labels" onResize={startResize} sort="status" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
         <HeaderCell
-          label={lastColumn === "milestone" ? "Milestone" : "Repo"}
+          label={view === "pulls" ? "Branch" : "Status"}
+          resizes="labels"
+          onResize={startResize}
+          sort={view === "pulls" ? undefined : "status"}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onSort={onSort}
+        />
+        <HeaderCell
+          label={view === "pulls" ? "Merged" : lastColumn === "milestone" ? "Milestone" : "Repo"}
           resizes="status"
           onResize={startResize}
-          sort={lastColumn === "repo" ? "repo" : undefined}
+          sort={view !== "pulls" && lastColumn === "repo" ? "repo" : undefined}
           sortBy={sortBy}
           sortDir={sortDir}
           onSort={onSort}
@@ -272,6 +330,7 @@ export function IssueTable({
             row={row}
             index={i}
             lastColumn={lastColumn}
+            view={view}
             selected={i === selectedIndex}
             active={active}
             flashed={flashedKeys.has(`${row.repo.name}#${row.number}`)}

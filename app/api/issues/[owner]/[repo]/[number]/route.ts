@@ -18,10 +18,11 @@ function parseNumber(raw: string): number {
   return n;
 }
 
-export async function GET(_request: NextRequest, ctx: Ctx) {
+export async function GET(request: NextRequest, ctx: Ctx) {
   try {
     const { owner, repo, number } = await ctx.params;
-    return ok(await getIssueDetail(owner, repo, parseNumber(number)));
+    const isPr = request.nextUrl.searchParams.get("kind") === "pr";
+    return ok(await getIssueDetail(owner, repo, parseNumber(number), isPr));
   } catch (e) {
     return fail(e);
   }
