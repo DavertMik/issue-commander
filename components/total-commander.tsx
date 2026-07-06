@@ -19,7 +19,7 @@ import { useIssueActions } from "@/hooks/use-issue-mutations";
 import { canCopy, canMove } from "@/lib/transfer";
 import { applyFilters, emptyFilter, type PaneFilter } from "@/lib/filters";
 import type { ActionId } from "@/lib/hotkeys";
-import type { IssueRow, PaneSource, PaneView, RepoRef } from "@/lib/types";
+import type { AppConfig, IssueRow, PaneSource, PaneView, RepoRef } from "@/lib/types";
 
 // Issue-only mutations: disabled in the PR view (F3 preview is allowed — it's read-only).
 const PR_DISABLED_ACTIONS = new Set<ActionId>(["edit", "copy", "move", "editIssue", "close", "quickAssign"]);
@@ -36,7 +36,7 @@ const FILTERS_KEY = "total-issues:filters";
 const CONFIG_KEY = "total-issues:config";
 const PAGE_JUMP = 10; // rows moved per PageUp / PageDown
 
-export function TotalCommander({ org }: { org: string | null }) {
+export function TotalCommander({ org, defaults }: { org: string | null; defaults?: AppConfig | null }) {
   const active = useAppStore((s) => s.active);
   const panes = useAppStore((s) => s.panes);
   const selected = useAppStore((s) => s.selected);
@@ -111,11 +111,17 @@ export function TotalCommander({ org }: { org: string | null }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(CONFIG_KEY);
-      if (raw) setConfig(JSON.parse(raw));
+      if (raw) {
+        setConfig(JSON.parse(raw));
+        return;
+      }
     } catch {
       // ignore
     }
-  }, [setConfig]);
+    // No saved config yet → seed from the server-provided defaults (--repo / --milestone /
+    // --project or IC_DEFAULT_*). The Settings dialog then overrides and persists.
+    if (defaults) setConfig(defaults);
+  }, [setConfig, defaults]);
   useEffect(() => {
     if (firstConfigSave.current) {
       firstConfigSave.current = false;

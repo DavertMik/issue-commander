@@ -19,6 +19,8 @@
 
 # production
 /build
+# assembled standalone artifact (built by `pnpm build:dist`, shipped to npm)
+/dist/
 
 # misc
 .DS_Store

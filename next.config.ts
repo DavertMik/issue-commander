@@ -1,8 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Pin the workspace root to this project so Turbopack doesn't pick a parent
-  // lockfile (there are other lockfiles higher up the tree).
+  // Self-contained build: `next build` emits `.next/standalone` with a minimal
+  // `server.js` and only the traced runtime deps. That folder (plus `public` and
+  // `.next/static`, copied in by scripts/pack-dist.mjs) is what ships as `dist/`.
+  output: "standalone",
+  // There are other lockfiles higher up the tree; pin the tracing/workspace root
+  // to this project so the standalone trace doesn't wander into a parent monorepo.
+  outputFileTracingRoot: __dirname,
   turbopack: {
     root: __dirname,
   },

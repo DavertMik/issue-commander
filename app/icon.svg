@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1c52"/>
+      <stop offset="1" stop-color="#03050d"/>
+    </linearGradient>
+    <linearGradient id="pane" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2452c6"/>
+      <stop offset="1" stop-color="#132c74"/>
+    </linearGradient>
+  </defs>
+
+  <!-- app-icon rounded square -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bg)"/>
+  <rect x="18" y="18" width="476" height="476" rx="106" fill="none" stroke="#3b6fe0" stroke-width="4" opacity="0.55"/>
+
+  <!-- left pane -->
+  <rect x="70" y="104" width="160" height="304" rx="20" fill="url(#pane)" stroke="#5a95ff" stroke-width="12"/>
+  <rect x="100" y="156" width="80" height="24" rx="12" fill="#a8c6fb"/>
+  <rect x="100" y="216" width="102" height="26" rx="13" fill="#3fdcf2"/>
+  <rect x="100" y="278" width="68" height="24" rx="12" fill="#a8c6fb"/>
+
+  <!-- right pane -->
+  <rect x="282" y="104" width="160" height="304" rx="20" fill="url(#pane)" stroke="#5a95ff" stroke-width="12"/>
+  <rect x="312" y="156" width="92" height="24" rx="12" fill="#a8c6fb"/>
+  <rect x="312" y="216" width="70" height="24" rx="12" fill="#a8c6fb"/>
+  <rect x="312" y="278" width="100" height="24" rx="12" fill="#a8c6fb"/>
+</svg>

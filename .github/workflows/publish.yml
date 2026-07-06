@@ -1,12 +1,18 @@
 name: Publish to npm
 
-# Publishes `issue-commander` to npm with build provenance whenever a GitHub Release is published.
+# Publishes `issue-commander` to npm on every GitHub Release, with build provenance.
 #
-# Setup (one-time):
-#   1. Add a repo secret `NPM_TOKEN` — an npm "Automation" (or granular publish) token.
-#   2. Bump the version in package.json, then create a GitHub Release (tag e.g. v0.1.0).
-# Provenance is attested via OIDC (`id-token: write`) — the package page will show a
-# "Built and signed on GitHub Actions" badge.
+# TOKENLESS — authenticates via npm Trusted Publishing (OIDC). There is NO NPM_TOKEN
+# secret; `id-token: write` lets npm exchange the GitHub OIDC token for a short-lived
+# publish credential, and provenance is attested from the same identity.
+#
+# One-time setup (only possible once the package exists on npm — do the first 0.1.0
+# publish first, then):
+#   npmjs.com → issue-commander → Settings → Trusted Publisher → GitHub Actions,
+#   repository DavertMik/issue-commander, workflow file `publish.yml`.
+#
+# To release: bump nothing by hand — just publish a GitHub Release with tag `vX.Y.Z`.
+# The version is taken from the tag; `rc`/`beta` tags publish under the `beta` dist-tag.
 
 on:
   release:
@@ -14,13 +20,15 @@ on:
 
 permissions:
   contents: read
-  id-token: write # required for npm provenance
+  id-token: write # required for OIDC trusted publishing + provenance
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.target_commitish }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -34,10 +42,27 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Build the Next.js app so the published tarball ships a ready-to-serve `.next`.
-      - run: pnpm build
+      # OIDC trusted publishing requires a recent npm.
+      - run: npm install -g npm@latest
 
+      # Version comes from the release tag (vX.Y.Z) — no manual package.json bump.
+      - name: Set version from tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          npm version "${TAG#v}" --no-git-tag-version --allow-same-version
+
+      # Build the standalone app and assemble the self-contained dist/.
+      - run: pnpm build:dist
+
+      # Publish with provenance. Prereleases (rc/beta) go to the `beta` dist-tag.
       # --ignore-scripts: we already built above, so skip the prepublishOnly rebuild.
-      - run: npm publish --provenance --access public --ignore-scripts
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [ "${{ github.event.release.prerelease }}" = "true" ] || echo "$TAG" | grep -qE 'rc|beta'; then
+            echo "Publishing $TAG under the 'beta' dist-tag"
+            npm publish --provenance --access public --tag beta --ignore-scripts
+          else
+            echo "Publishing $TAG under the 'latest' dist-tag"
+            npm publish --provenance --access public --ignore-scripts
+          fi

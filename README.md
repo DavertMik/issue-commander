@@ -12,8 +12,8 @@ keys (F3–F8) — the way you move files in a two-pane file manager. Everything
 GitHub **organization**.
 
 ```bash
-GITHUB_ORG=your-org npx issue-commander
-# → http://localhost:3000
+npx issue-commander --org your-org
+# → http://localhost:7367
 ```
 
 <p align="center">
@@ -35,12 +35,14 @@ two-pane file manager.
 - **[GitHub CLI](https://cli.github.com/), authenticated.** The token comes from `gh auth token`
   (falling back to `GITHUB_TOKEN` / `GH_TOKEN`); run `gh auth login` once. It needs the `repo`,
   `read:org`, and `project` scopes.
-- **`GITHUB_ORG`** — the organization to manage. There is no in-app org switch.
+- **A target organization** — pass `--org <org>`, or set `IC_GITHUB_ORG` (or the legacy
+  `GITHUB_ORG`). There is no in-app org switch. See [Configuration](#configuration).
 
 ```bash
 gh auth login
-GITHUB_ORG=acme npx issue-commander             # default port 3000
-PORT=3002 GITHUB_ORG=acme npx issue-commander   # custom port
+npx issue-commander --org acme                  # serve on port 7367
+npx issue-commander --org acme --port 3002      # custom port
+IC_GITHUB_ORG=acme npx issue-commander          # via the environment instead of a flag
 ```
 
 ## The two panes
@@ -150,6 +152,54 @@ Every write is **optimistic**: the UI updates at once and rolls back with a toas
 
 The **⚙** button stores your **default repository, milestone, and project** in `localStorage`. These
 pre-fill new issues and choose which board's **Status** you see and edit across non-project panes.
+Seed them for everyone with `--repo` / `--milestone` / `--project` (see [Configuration](#configuration));
+the dialog then overrides that seed per browser.
+
+## Configuration
+
+Issue Commander is configured from the command line or the environment. **Flags win over
+environment variables**, and the `IC_`-prefixed variables win over the legacy names.
+
+### Command-line flags
+
+| Flag                  | Sets                                                                     |
+| --------------------- | ------------------------------------------------------------------------ |
+| `--org <org>`         | GitHub organization to manage (**required**)                             |
+| `--repo <name>`       | Default repository — pre-fills new issues and picks the Status board     |
+| `--milestone <title>` | Default org-wide milestone                                               |
+| `--project <number>`  | Default Projects V2 number                                               |
+| `--port <port>`       | Port to serve on (default `7367`)                                        |
+| `-h`, `--help`        | Show usage and exit                                                      |
+
+### Environment variables
+
+| Variable                    | Same as       | Notes                                        |
+| --------------------------- | ------------- | -------------------------------------------- |
+| `IC_GITHUB_ORG`             | `--org`       | Preferred; prefixed to avoid clashes         |
+| `GITHUB_ORG`                | `--org`       | Legacy name, still supported                 |
+| `IC_DEFAULT_REPO`           | `--repo`      |                                              |
+| `IC_DEFAULT_MILESTONE`      | `--milestone` |                                              |
+| `IC_DEFAULT_PROJECT`        | `--project`   | A project number                             |
+| `PORT`                      | `--port`      |                                              |
+| `GITHUB_TOKEN` / `GH_TOKEN` | —             | Token fallback when `gh` is not authenticated |
+
+The three **defaults** seed the app on first run and the in-app **Settings** dialog overrides them.
+Flags apply to the `npx` launcher; when running from source (`pnpm dev`), set the environment
+variables (in your shell or `.env.local`) instead.
+
+```bash
+# Simplest — one flag
+npx issue-commander --org acme
+
+# With defaults, on a custom port
+npx issue-commander --org acme --repo web --milestone "Q3 Roadmap" --project 12 --port 3002
+
+# Everything through the environment (e.g. a container or CI)
+export IC_GITHUB_ORG=acme
+export IC_DEFAULT_REPO=web
+export IC_DEFAULT_MILESTONE="Q3 Roadmap"
+npx issue-commander
+```
 
 ## Development
 

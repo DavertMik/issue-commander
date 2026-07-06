@@ -18,7 +18,13 @@ pnpm exec tsc --noEmit   # typecheck
 ```
 
 - **Dev runs on `:3002`** — port 3000 is taken by another app on this machine (Next picks 3002).
-- Requires **`GITHUB_ORG`** in `.env.local` (e.g. `GITHUB_ORG=testomatio`). No in-app org switch.
+- Requires an **org**, resolved by `resolveOrg()` (`lib/github/org.ts`) from `IC_GITHUB_ORG` then
+  `GITHUB_ORG`; in dev set it in `.env.local` (e.g. `GITHUB_ORG=testomatio`). No in-app org switch.
+- The **`npx` launcher** (`bin/issue-commander.js`) parses `--org` / `--repo` / `--milestone` /
+  `--project` / `--port` and normalizes them into `IC_*` env vars the server reads at runtime.
+- **Server-side defaults** (`lib/config.ts` `envDefaults()`) read `IC_DEFAULT_{REPO,MILESTONE,PROJECT}`
+  and flow through `app/page.tsx` as the `defaults` prop; `total-commander.tsx` seeds the config with
+  them on first run (when `localStorage` has none), and the Settings dialog overrides thereafter.
 - Auth: the server gets a token from **`gh auth token`** (falls back to `GITHUB_TOKEN`/`GH_TOKEN`).
 
 ### ⚠️ Critical gotchas

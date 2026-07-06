@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Assembled standalone artifact (built by `pnpm build:dist`, shipped to npm).
+    "dist/**",
     // CommonJS Node launcher for `npx issue-commander` — not app source.
     "bin/**",
   ]),
