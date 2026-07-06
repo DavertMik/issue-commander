@@ -64,7 +64,7 @@ export function PaneFilterBar({
           <button
             key={s.id}
             type="button"
-            onClick={() => onChange({ state: s.id })}
+            onClick={() => onChange(s.id === "merged" ? { state: s.id } : { state: s.id, mergedRange: "any" })}
             className={cn(
               "px-2 py-1 text-xs font-medium transition-colors",
               filter.state === s.id ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted",
@@ -97,7 +97,7 @@ export function PaneFilterBar({
         className="h-7 w-40"
       />
 
-      {view === "pulls" && (
+      {view === "pulls" && filter.state === "merged" && (
         <SingleSearchCombo
           placeholder="Merged anytime"
           searchPlaceholder="Merged range…"

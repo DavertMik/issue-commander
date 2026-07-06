@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { emptyFilter, type PaneFilter } from "@/lib/filters";
+import { DEFAULT_LIGHT_THEME, DEFAULT_THEME, isThemeId, themeById, THEME_STORAGE_KEY, type ThemeId } from "@/lib/themes";
 import type { AppConfig, IssueRow, PaneSource, PaneView } from "@/lib/types";
 
 export type { PaneView } from "@/lib/types";
@@ -91,6 +92,34 @@ interface AppState {
   /** Persisted user defaults (hydrated from / saved to localStorage by TotalCommander). */
   config: AppConfig;
   setConfig: (patch: Partial<AppConfig>) => void;
+  /** Active color theme id; applied to <html> and persisted by TotalCommander. */
+  theme: ThemeId;
+  setTheme: (t: ThemeId) => void;
+  /** Last theme chosen in each mode, so the quick dark/light toggle restores your pick. */
+  lastByMode: { dark: ThemeId; light: ThemeId };
+  /** Flip between dark and light, returning to the last theme used in the target mode. */
+  toggleMode: () => void;
+}
+
+/** Read the saved theme synchronously so first paint matches (no flash back to default). */
+function initialTheme(): ThemeId {
+  if (typeof window === "undefined") return DEFAULT_THEME;
+  try {
+    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (isThemeId(saved)) return saved;
+  } catch {
+    // ignore
+  }
+  return DEFAULT_THEME;
+}
+
+function initialLastByMode(): { dark: ThemeId; light: ThemeId } {
+  const t = initialTheme();
+  const mode = themeById(t).mode;
+  return {
+    dark: mode === "dark" ? t : DEFAULT_THEME,
+    light: mode === "light" ? t : DEFAULT_LIGHT_THEME,
+  };
 }
 
 const emptyPane = (): PaneState => ({
@@ -223,4 +252,14 @@ export const useAppStore = create<AppState>((set) => ({
 
   config: emptyConfig(),
   setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
+
+  theme: initialTheme(),
+  lastByMode: initialLastByMode(),
+  setTheme: (theme) =>
+    set((s) => ({ theme, lastByMode: { ...s.lastByMode, [themeById(theme).mode]: theme } })),
+  toggleMode: () =>
+    set((s) => {
+      const target = themeById(s.theme).mode === "dark" ? "light" : "dark";
+      return { theme: s.lastByMode[target] };
+    }),
 }));

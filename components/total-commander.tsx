@@ -11,13 +11,14 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EditDialog } from "@/components/edit-dialog";
 import { QuickAssignPicker } from "@/components/quick-assign";
 import { SettingsDialog } from "@/components/settings-dialog";
-import { Plus, Settings } from "lucide-react";
+import { Moon, Plus, Settings, Sun } from "lucide-react";
 import { opposite, useAppStore, type PaneId } from "@/hooks/use-app-store";
 import { useHotkeys } from "@/hooks/use-hotkeys";
 import { useIssues } from "@/hooks/use-issues";
 import { useIssueActions } from "@/hooks/use-issue-mutations";
 import { canCopy, canMove } from "@/lib/transfer";
 import { applyFilters, emptyFilter, type PaneFilter } from "@/lib/filters";
+import { themeById, THEME_STORAGE_KEY } from "@/lib/themes";
 import type { ActionId } from "@/lib/hotkeys";
 import type { AppConfig, IssueRow, PaneSource, PaneView, RepoRef } from "@/lib/types";
 
@@ -133,6 +134,24 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
       // ignore
     }
   }, [config]);
+
+  // ----- apply + persist the color theme -----
+  // The store seeds `theme` from localStorage synchronously (see initialTheme) and an
+  // inline script in layout.tsx paints it before hydration, so this just keeps <html>
+  // in sync when the user switches themes in Settings.
+  const theme = useAppStore((s) => s.theme);
+  useEffect(() => {
+    const def = themeById(theme);
+    const el = document.documentElement;
+    el.setAttribute("data-theme", def.id);
+    el.classList.toggle("dark", def.mode === "dark");
+    el.style.colorScheme = def.mode;
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, def.id);
+    } catch {
+      // ignore
+    }
+  }, [theme]);
 
   // Latest per-pane context for the keydown handler (read via ref to avoid stale
   // closures). Updated in an effect (never during render) so concurrent renders stay safe.
@@ -403,6 +422,15 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
         <span className="ml-auto hidden font-mono text-xs text-muted-foreground md:block">
           Tab switch · F1/F2 source · Ins select · ↑↓ navigate · Enter open · Alt+Enter new
         </span>
+        <button
+          type="button"
+          onClick={() => useAppStore.getState().toggleMode()}
+          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          title={themeById(theme).mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          aria-label={themeById(theme).mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        >
+          {themeById(theme).mode === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </button>
         <button
           type="button"
           onClick={() => useAppStore.getState().openSettings()}

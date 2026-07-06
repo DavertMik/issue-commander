@@ -49,6 +49,7 @@
 }
 
 :root {
+  color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -83,8 +84,10 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* Norton Commander–inspired deep blue. Navy panels, light text, cyan accent. */
+/* Norton Commander–inspired deep blue. Navy panels, light text, cyan accent.
+   This is also the `commander` theme (the default) — hence no `[data-theme]` block. */
 .dark {
+  color-scheme: dark;
   --background: oklch(0.19 0.06 264);
   --foreground: oklch(0.95 0.02 250);
   --card: oklch(0.255 0.075 263);
@@ -116,6 +119,408 @@
   --sidebar-accent-foreground: oklch(0.97 0.02 240);
   --sidebar-border: oklch(0.44 0.08 255);
   --sidebar-ring: oklch(0.78 0.13 215);
+}
+
+/* ==========================================================================
+   Named themes. Each fully overrides the palette; dark themes also carry the
+   `.dark` class (added by the client) so `dark:` utilities keep working. These
+   blocks are placed AFTER `:root`/`.dark` so — at equal specificity — they win.
+   ========================================================================== */
+
+/* ── Monokai ─────────────────────────────────────────────────────────────── */
+[data-theme="monokai"] {
+  color-scheme: dark;
+  --background: #272822;
+  --foreground: #f8f8f2;
+  --card: #2d2e28;
+  --card-foreground: #f8f8f2;
+  --popover: #211f1c;
+  --popover-foreground: #f8f8f2;
+  --primary: #f92672;
+  --primary-foreground: #272822;
+  --secondary: #414339;
+  --secondary-foreground: #f8f8f2;
+  --muted: #383930;
+  --muted-foreground: #a6a695;
+  --accent: #46473c;
+  --accent-foreground: #f8f8f2;
+  --destructive: #f9385f;
+  --border: #49483e;
+  --input: #3b3c33;
+  --ring: #f92672;
+  --chart-1: #a6e22e;
+  --chart-2: #f92672;
+  --chart-3: #66d9ef;
+  --chart-4: #fd971f;
+  --chart-5: #ae81ff;
+  --sidebar: #211f1c;
+  --sidebar-foreground: #f8f8f2;
+  --sidebar-primary: #f92672;
+  --sidebar-primary-foreground: #272822;
+  --sidebar-accent: #46473c;
+  --sidebar-accent-foreground: #f8f8f2;
+  --sidebar-border: #49483e;
+  --sidebar-ring: #f92672;
+}
+
+/* ── Dracula ─────────────────────────────────────────────────────────────── */
+[data-theme="dracula"] {
+  color-scheme: dark;
+  --background: #282a36;
+  --foreground: #f8f8f2;
+  --card: #343746;
+  --card-foreground: #f8f8f2;
+  --popover: #21222c;
+  --popover-foreground: #f8f8f2;
+  --primary: #bd93f9;
+  --primary-foreground: #282a36;
+  --secondary: #44475a;
+  --secondary-foreground: #f8f8f2;
+  --muted: #3a3d4d;
+  --muted-foreground: #8189b0;
+  --accent: #414458;
+  --accent-foreground: #f8f8f2;
+  --destructive: #ff5555;
+  --border: #44475a;
+  --input: #343746;
+  --ring: #bd93f9;
+  --chart-1: #bd93f9;
+  --chart-2: #ff79c6;
+  --chart-3: #8be9fd;
+  --chart-4: #50fa7b;
+  --chart-5: #ffb86c;
+  --sidebar: #21222c;
+  --sidebar-foreground: #f8f8f2;
+  --sidebar-primary: #bd93f9;
+  --sidebar-primary-foreground: #282a36;
+  --sidebar-accent: #414458;
+  --sidebar-accent-foreground: #f8f8f2;
+  --sidebar-border: #44475a;
+  --sidebar-ring: #bd93f9;
+}
+
+/* ── Nord ────────────────────────────────────────────────────────────────── */
+[data-theme="nord"] {
+  color-scheme: dark;
+  --background: #2e3440;
+  --foreground: #eceff4;
+  --card: #3b4252;
+  --card-foreground: #eceff4;
+  --popover: #2b303b;
+  --popover-foreground: #eceff4;
+  --primary: #88c0d0;
+  --primary-foreground: #2e3440;
+  --secondary: #434c5e;
+  --secondary-foreground: #eceff4;
+  --muted: #3b4252;
+  --muted-foreground: #8b95a7;
+  --accent: #434c5e;
+  --accent-foreground: #eceff4;
+  --destructive: #bf616a;
+  --border: #434c5e;
+  --input: #3b4252;
+  --ring: #88c0d0;
+  --chart-1: #88c0d0;
+  --chart-2: #81a1c1;
+  --chart-3: #a3be8c;
+  --chart-4: #ebcb8b;
+  --chart-5: #b48ead;
+  --sidebar: #2b303b;
+  --sidebar-foreground: #eceff4;
+  --sidebar-primary: #88c0d0;
+  --sidebar-primary-foreground: #2e3440;
+  --sidebar-accent: #434c5e;
+  --sidebar-accent-foreground: #eceff4;
+  --sidebar-border: #434c5e;
+  --sidebar-ring: #88c0d0;
+}
+
+/* ── Solarized Dark ──────────────────────────────────────────────────────── */
+[data-theme="solarized-dark"] {
+  color-scheme: dark;
+  --background: #002b36;
+  --foreground: #93a1a1;
+  --card: #073642;
+  --card-foreground: #93a1a1;
+  --popover: #01252e;
+  --popover-foreground: #93a1a1;
+  --primary: #268bd2;
+  --primary-foreground: #002b36;
+  --secondary: #0a4a5a;
+  --secondary-foreground: #93a1a1;
+  --muted: #073642;
+  --muted-foreground: #657b83;
+  --accent: #0d4655;
+  --accent-foreground: #eee8d5;
+  --destructive: #dc322f;
+  --border: #14505f;
+  --input: #073642;
+  --ring: #268bd2;
+  --chart-1: #268bd2;
+  --chart-2: #2aa198;
+  --chart-3: #859900;
+  --chart-4: #b58900;
+  --chart-5: #d33682;
+  --sidebar: #01252e;
+  --sidebar-foreground: #93a1a1;
+  --sidebar-primary: #268bd2;
+  --sidebar-primary-foreground: #002b36;
+  --sidebar-accent: #0d4655;
+  --sidebar-accent-foreground: #eee8d5;
+  --sidebar-border: #14505f;
+  --sidebar-ring: #268bd2;
+}
+
+/* ── Tokyo Night ─────────────────────────────────────────────────────────── */
+[data-theme="tokyo-night"] {
+  color-scheme: dark;
+  --background: #1a1b26;
+  --foreground: #c0caf5;
+  --card: #24283b;
+  --card-foreground: #c0caf5;
+  --popover: #16161e;
+  --popover-foreground: #c0caf5;
+  --primary: #7aa2f7;
+  --primary-foreground: #1a1b26;
+  --secondary: #2f334d;
+  --secondary-foreground: #c0caf5;
+  --muted: #292e42;
+  --muted-foreground: #737aa2;
+  --accent: #343a55;
+  --accent-foreground: #c0caf5;
+  --destructive: #f7768e;
+  --border: #2f334d;
+  --input: #24283b;
+  --ring: #7aa2f7;
+  --chart-1: #7aa2f7;
+  --chart-2: #bb9af7;
+  --chart-3: #7dcfff;
+  --chart-4: #9ece6a;
+  --chart-5: #e0af68;
+  --sidebar: #16161e;
+  --sidebar-foreground: #c0caf5;
+  --sidebar-primary: #7aa2f7;
+  --sidebar-primary-foreground: #1a1b26;
+  --sidebar-accent: #343a55;
+  --sidebar-accent-foreground: #c0caf5;
+  --sidebar-border: #2f334d;
+  --sidebar-ring: #7aa2f7;
+}
+
+/* ── Paper (light) ───────────────────────────────────────────────────────── */
+[data-theme="paper"] {
+  color-scheme: light;
+  --background: #faf9f7;
+  --foreground: #33302b;
+  --card: #ffffff;
+  --card-foreground: #33302b;
+  --popover: #ffffff;
+  --popover-foreground: #33302b;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #efece6;
+  --secondary-foreground: #33302b;
+  --muted: #f0ede7;
+  --muted-foreground: #78716c;
+  --accent: #eae6de;
+  --accent-foreground: #33302b;
+  --destructive: #b91c1c;
+  --border: #e2ddd3;
+  --input: #e2ddd3;
+  --ring: #0f766e;
+  --chart-1: #0f766e;
+  --chart-2: #d97706;
+  --chart-3: #2563eb;
+  --chart-4: #65a30d;
+  --chart-5: #9333ea;
+  --sidebar: #f3f0ea;
+  --sidebar-foreground: #33302b;
+  --sidebar-primary: #0f766e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eae6de;
+  --sidebar-accent-foreground: #33302b;
+  --sidebar-border: #e2ddd3;
+  --sidebar-ring: #0f766e;
+}
+
+/* ── Solarized Light ─────────────────────────────────────────────────────── */
+[data-theme="solarized-light"] {
+  color-scheme: light;
+  --background: #fdf6e3;
+  --foreground: #586e75;
+  --card: #fbf1d7;
+  --card-foreground: #586e75;
+  --popover: #fdf6e3;
+  --popover-foreground: #586e75;
+  --primary: #268bd2;
+  --primary-foreground: #fdf6e3;
+  --secondary: #eee8d5;
+  --secondary-foreground: #586e75;
+  --muted: #eee8d5;
+  --muted-foreground: #93a1a1;
+  --accent: #e6dfc4;
+  --accent-foreground: #586e75;
+  --destructive: #dc322f;
+  --border: #ded7bf;
+  --input: #ded7bf;
+  --ring: #268bd2;
+  --chart-1: #268bd2;
+  --chart-2: #2aa198;
+  --chart-3: #859900;
+  --chart-4: #b58900;
+  --chart-5: #d33682;
+  --sidebar: #f5edd5;
+  --sidebar-foreground: #586e75;
+  --sidebar-primary: #268bd2;
+  --sidebar-primary-foreground: #fdf6e3;
+  --sidebar-accent: #e6dfc4;
+  --sidebar-accent-foreground: #586e75;
+  --sidebar-border: #ded7bf;
+  --sidebar-ring: #268bd2;
+}
+
+/* ── GitHub Light ────────────────────────────────────────────────────────── */
+[data-theme="github-light"] {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #1f2328;
+  --card: #ffffff;
+  --card-foreground: #1f2328;
+  --popover: #ffffff;
+  --popover-foreground: #1f2328;
+  --primary: #0969da;
+  --primary-foreground: #ffffff;
+  --secondary: #f6f8fa;
+  --secondary-foreground: #1f2328;
+  --muted: #eff2f5;
+  --muted-foreground: #59636e;
+  --accent: #eaeef2;
+  --accent-foreground: #1f2328;
+  --destructive: #cf222e;
+  --border: #d1d9e0;
+  --input: #d1d9e0;
+  --ring: #0969da;
+  --chart-1: #0969da;
+  --chart-2: #1a7f37;
+  --chart-3: #8250df;
+  --chart-4: #bf8700;
+  --chart-5: #cf222e;
+  --sidebar: #f6f8fa;
+  --sidebar-foreground: #1f2328;
+  --sidebar-primary: #0969da;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaeef2;
+  --sidebar-accent-foreground: #1f2328;
+  --sidebar-border: #d1d9e0;
+  --sidebar-ring: #0969da;
+}
+
+/* ── One Light (Atom) ────────────────────────────────────────────────────── */
+[data-theme="one-light"] {
+  color-scheme: light;
+  --background: #fafafa;
+  --foreground: #383a42;
+  --card: #ffffff;
+  --card-foreground: #383a42;
+  --popover: #ffffff;
+  --popover-foreground: #383a42;
+  --primary: #4078f2;
+  --primary-foreground: #ffffff;
+  --secondary: #ececed;
+  --secondary-foreground: #383a42;
+  --muted: #eaeaeb;
+  --muted-foreground: #9d9ea6;
+  --accent: #e5e5e6;
+  --accent-foreground: #383a42;
+  --destructive: #e45649;
+  --border: #dcdcdd;
+  --input: #dcdcdd;
+  --ring: #4078f2;
+  --chart-1: #4078f2;
+  --chart-2: #50a14f;
+  --chart-3: #a626a4;
+  --chart-4: #c18401;
+  --chart-5: #e45649;
+  --sidebar: #f0f0f1;
+  --sidebar-foreground: #383a42;
+  --sidebar-primary: #4078f2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e5e5e6;
+  --sidebar-accent-foreground: #383a42;
+  --sidebar-border: #dcdcdd;
+  --sidebar-ring: #4078f2;
+}
+
+/* ── Rosé Pine Dawn ──────────────────────────────────────────────────────── */
+[data-theme="rose-pine-dawn"] {
+  color-scheme: light;
+  --background: #faf4ed;
+  --foreground: #575279;
+  --card: #fffaf3;
+  --card-foreground: #575279;
+  --popover: #fffaf3;
+  --popover-foreground: #575279;
+  --primary: #907aa9;
+  --primary-foreground: #fffaf3;
+  --secondary: #f2e9e1;
+  --secondary-foreground: #575279;
+  --muted: #f4ede8;
+  --muted-foreground: #797593;
+  --accent: #dfdad9;
+  --accent-foreground: #575279;
+  --destructive: #b4637a;
+  --border: #dfdad9;
+  --input: #dfdad9;
+  --ring: #907aa9;
+  --chart-1: #907aa9;
+  --chart-2: #d7827e;
+  --chart-3: #56949f;
+  --chart-4: #ea9d34;
+  --chart-5: #b4637a;
+  --sidebar: #fffaf3;
+  --sidebar-foreground: #575279;
+  --sidebar-primary: #907aa9;
+  --sidebar-primary-foreground: #fffaf3;
+  --sidebar-accent: #dfdad9;
+  --sidebar-accent-foreground: #575279;
+  --sidebar-border: #dfdad9;
+  --sidebar-ring: #907aa9;
+}
+
+/* ── Dracula Light (Alucard-ish) ─────────────────────────────────────────── */
+[data-theme="dracula-light"] {
+  color-scheme: light;
+  --background: #f5f3fb;
+  --foreground: #34314a;
+  --card: #ffffff;
+  --card-foreground: #34314a;
+  --popover: #ffffff;
+  --popover-foreground: #34314a;
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --secondary: #ece8f7;
+  --secondary-foreground: #34314a;
+  --muted: #ece8f7;
+  --muted-foreground: #6d6a86;
+  --accent: #efe9fb;
+  --accent-foreground: #34314a;
+  --destructive: #d6336c;
+  --border: #ddd6f0;
+  --input: #ddd6f0;
+  --ring: #7c3aed;
+  --chart-1: #7c3aed;
+  --chart-2: #d6336c;
+  --chart-3: #0891b2;
+  --chart-4: #16a34a;
+  --chart-5: #ea8a34;
+  --sidebar: #efeaf9;
+  --sidebar-foreground: #34314a;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #efe9fb;
+  --sidebar-accent-foreground: #34314a;
+  --sidebar-border: #ddd6f0;
+  --sidebar-ring: #7c3aed;
 }
 
 @layer base {
