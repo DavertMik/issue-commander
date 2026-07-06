@@ -17,7 +17,7 @@ GITHUB_ORG=your-org npx issue-commander
 ```
 
 <p align="center">
-  <img src="issue-commander-screenshot.png" alt="Issue Commander — a milestone pane beside a project pane" width="900" />
+  <img src="issue-commander-screenshot.png" alt="Issue Commander — a repository's issues beside its pull requests" width="900" />
 </p>
 
 ---
