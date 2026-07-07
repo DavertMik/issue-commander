@@ -4,8 +4,25 @@ import type { IssueRow } from "@/lib/types";
 export type StateFilter = "open" | "closed" | "merged" | "all";
 export type SortField = "none" | "number" | "title" | "repo" | "assignee" | "status";
 export type SortDir = "asc" | "desc";
-/** PR merged-at range filter (client-side, PR view only). */
-export type MergedRange = "any" | "today" | "week" | "month";
+
+/** An inclusive local-date range (yyyy-mm-dd); either bound may be open. */
+export interface DateRange {
+  from: string | null; // inclusive start (yyyy-mm-dd), null = unbounded
+  to: string | null; // inclusive end (yyyy-mm-dd), null = unbounded
+}
+export const emptyDateRange = (): DateRange => ({ from: null, to: null });
+
+/** Which IssueRow timestamp the date filter ranges over, chosen by the active state. */
+export type DateField = "createdAt" | "closedAt" | "mergedAt";
+
+/** The date filter is contextual: opened-date for Open, closed-date for Closed,
+ * merged-date for Merged. "All" mixes states, so no single date applies. */
+export function dateFieldForState(state: StateFilter): DateField | null {
+  if (state === "open") return "createdAt";
+  if (state === "closed") return "closedAt";
+  if (state === "merged") return "mergedAt";
+  return null; // "all"
+}
 
 export interface PaneFilter {
   search: string;
@@ -14,7 +31,7 @@ export interface PaneFilter {
   statuses: string[];
   branches: string[]; // PR target (base) branches, PR view only
   state: StateFilter;
-  mergedRange: MergedRange;
+  dateRange: DateRange; // ranges over the state's contextual date (dateFieldForState)
   sortBy: SortField;
   sortDir: SortDir;
 }
@@ -26,10 +43,16 @@ export const emptyFilter = (): PaneFilter => ({
   statuses: [],
   branches: [],
   state: "open",
-  mergedRange: "any",
+  dateRange: emptyDateRange(),
   sortBy: "none",
   sortDir: "asc",
 });
+
+/** True when the range constrains anything for the current state. "All" has no
+ * contextual date, so a set range is inert there and shouldn't read as active. */
+function isDateRangeActive(f: PaneFilter): boolean {
+  return dateFieldForState(f.state) != null && !!(f.dateRange.from || f.dateRange.to);
+}
 
 /** Non-state filters that act purely client-side (state is also a server query param). */
 export function isFilterActive(f: PaneFilter): boolean {
@@ -39,20 +62,21 @@ export function isFilterActive(f: PaneFilter): boolean {
     f.repos.length ||
     f.statuses.length ||
     f.branches.length ||
-    f.mergedRange !== "any"
+    isDateRangeActive(f)
   );
 }
 
-/** Epoch-ms cutoff for a merged-range filter, or null for "any". */
-function mergedCutoff(range: MergedRange): number | null {
-  if (range === "any") return null;
-  const now = new Date();
-  if (range === "today") {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return start.getTime();
-  }
-  const days = range === "week" ? 7 : 30; // rolling window
-  return now.getTime() - days * 24 * 60 * 60 * 1000;
+function rowDate(r: IssueRow, field: DateField): string | null {
+  if (field === "mergedAt") return r.pr?.mergedAt ?? null;
+  if (field === "closedAt") return r.closedAt;
+  return r.createdAt;
+}
+
+/** Epoch-ms bounds for a local-date range: [start-of-`from`, end-of-`to`]. */
+function rangeBounds(range: DateRange): { fromMs: number | null; toMs: number | null } {
+  const fromMs = range.from ? new Date(`${range.from}T00:00:00`).getTime() : null;
+  const toMs = range.to ? new Date(`${range.to}T23:59:59.999`).getTime() : null;
+  return { fromMs, toMs };
 }
 
 /**
@@ -67,9 +91,17 @@ export function applyFilters(rows: IssueRow[], f: PaneFilter): IssueRow[] {
   else if (f.state === "closed") out = out.filter((r) => r.state === "closed" && !r.pr?.merged);
   else if (f.state === "merged") out = out.filter((r) => !!r.pr?.merged);
   // "all" → no state filter
-  const cutoff = mergedCutoff(f.mergedRange);
-  if (cutoff != null) {
-    out = out.filter((r) => r.pr?.mergedAt != null && new Date(r.pr.mergedAt).getTime() >= cutoff);
+  const dateField = dateFieldForState(f.state);
+  if (dateField && (f.dateRange.from || f.dateRange.to)) {
+    const { fromMs, toMs } = rangeBounds(f.dateRange);
+    out = out.filter((r) => {
+      const d = rowDate(r, dateField);
+      if (!d) return false; // no such date → excluded while a range is set
+      const t = new Date(d).getTime();
+      if (fromMs != null && t < fromMs) return false;
+      if (toMs != null && t > toMs) return false;
+      return true;
+    });
   }
   if (f.assignees.length) {
     const set = new Set(f.assignees);

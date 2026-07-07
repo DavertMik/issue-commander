@@ -5,6 +5,8 @@ const ISSUE_CONTENT_FIELDS = `
   number
   title
   state
+  createdAt
+  closedAt
   url
   repository { nameWithOwner }
   milestone { number title }

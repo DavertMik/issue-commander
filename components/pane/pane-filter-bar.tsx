@@ -4,8 +4,9 @@ import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { MultiSelect } from "@/components/multi-select";
 import { SingleSearchCombo, MultiSearchCombo } from "@/components/search-combo";
+import { DateRangeFilter } from "@/components/date-range-filter";
 import { cn } from "@/lib/utils";
-import { isFilterActive, type MergedRange, type PaneFilter, type StateFilter } from "@/lib/filters";
+import { dateFieldForState, isFilterActive, type PaneFilter, type StateFilter } from "@/lib/filters";
 import type { PaneView } from "@/lib/types";
 
 const ISSUE_STATES: { id: StateFilter; label: string }[] = [
@@ -22,11 +23,12 @@ const PR_STATES: { id: StateFilter; label: string }[] = [
   { id: "all", label: "All" },
 ];
 
-const MERGED_RANGES: { value: MergedRange; label: string }[] = [
-  { value: "today", label: "Merged today" },
-  { value: "week", label: "Merged this week" },
-  { value: "month", label: "Merged this month" },
-];
+// The date filter is contextual: it ranges over whichever timestamp fits the state.
+const DATE_LABELS: Record<"createdAt" | "closedAt" | "mergedAt", string> = {
+  createdAt: "Opened",
+  closedAt: "Closed",
+  mergedAt: "Merged",
+};
 
 interface Props {
   filter: PaneFilter;
@@ -57,6 +59,7 @@ export function PaneFilterBar({
 }: Props) {
   const active = isFilterActive(filter);
   const states = view === "pulls" ? PR_STATES : ISSUE_STATES;
+  const dateField = dateFieldForState(filter.state); // null on "all" → no date filter
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-muted/20 px-2 py-1.5">
       <div className="flex shrink-0 overflow-hidden rounded border border-input">
@@ -64,7 +67,7 @@ export function PaneFilterBar({
           <button
             key={s.id}
             type="button"
-            onClick={() => onChange(s.id === "merged" ? { state: s.id } : { state: s.id, mergedRange: "any" })}
+            onClick={() => onChange({ state: s.id })}
             className={cn(
               "px-2 py-1 text-xs font-medium transition-colors",
               filter.state === s.id ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted",
@@ -97,14 +100,12 @@ export function PaneFilterBar({
         className="h-7 w-40"
       />
 
-      {view === "pulls" && filter.state === "merged" && (
-        <SingleSearchCombo
-          placeholder="Merged anytime"
-          searchPlaceholder="Merged range…"
-          options={MERGED_RANGES.map((r) => ({ value: r.value, label: r.label }))}
-          value={filter.mergedRange === "any" ? null : filter.mergedRange}
-          onChange={(v) => onChange({ mergedRange: (v as MergedRange) ?? "any" })}
-          className="h-7 w-44"
+      {dateField && (
+        <DateRangeFilter
+          label={DATE_LABELS[dateField]}
+          value={filter.dateRange}
+          onChange={(dateRange) => onChange({ dateRange })}
+          className="w-44"
         />
       )}
 

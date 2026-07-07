@@ -52,6 +52,8 @@ export interface IssueRow {
   number: number;
   title: string;
   state: IssueState;
+  createdAt: string; // ISO timestamp the issue/PR was opened
+  closedAt: string | null; // ISO timestamp it was closed (or merged); null while open
   assignees: Assignee[];
   labels: Label[];
   milestone: MilestoneRef | null;

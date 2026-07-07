@@ -17,6 +17,8 @@ export interface RestIssue {
   number: number;
   title: string;
   state: string;
+  created_at: string;
+  closed_at?: string | null;
   html_url: string;
   node_id: string;
   assignees?: Array<{ login: string; avatar_url: string }> | null;
@@ -37,6 +39,8 @@ export function mapRestIssue(issue: RestIssue, repo: RepoRef): IssueRow {
     number: issue.number,
     title: issue.title,
     state: issue.state === "closed" ? "closed" : "open",
+    createdAt: issue.created_at,
+    closedAt: issue.closed_at ?? null,
     assignees: (issue.assignees ?? []).map((a) => ({ login: a.login, avatarUrl: a.avatar_url })),
     labels: (issue.labels ?? []).map(toLabel).filter((l): l is Label => l !== null),
     milestone: issue.milestone ? { number: issue.milestone.number, title: issue.milestone.title } : null,
@@ -58,6 +62,8 @@ export interface RestPull {
   number: number;
   title: string;
   state: string; // open | closed
+  created_at: string;
+  closed_at?: string | null;
   html_url: string;
   node_id: string;
   merged_at?: string | null;
@@ -78,6 +84,8 @@ export function mapRestPull(pull: RestPull, repo: RepoRef): IssueRow {
     number: pull.number,
     title: pull.title,
     state: pull.state === "closed" ? "closed" : "open",
+    createdAt: pull.created_at,
+    closedAt: pull.closed_at ?? null,
     assignees: author ? [author] : [],
     labels: (pull.labels ?? []).map(toLabel).filter((l): l is Label => l !== null),
     milestone: pull.milestone ? { number: pull.milestone.number, title: pull.milestone.title } : null,
@@ -101,6 +109,8 @@ export interface SearchIssue {
   number: number;
   title: string;
   state: string;
+  created_at: string;
+  closed_at?: string | null;
   html_url: string;
   node_id: string;
   repository_url: string; // https://api.github.com/repos/{owner}/{name}
@@ -119,6 +129,8 @@ export function mapSearchIssue(it: SearchIssue): IssueRow {
     number: it.number,
     title: it.title,
     state: it.state === "closed" ? "closed" : "open",
+    createdAt: it.created_at,
+    closedAt: it.closed_at ?? null,
     assignees: (it.assignees ?? []).map((a) => ({ login: a.login, avatarUrl: a.avatar_url })),
     labels: (it.labels ?? []).map(toLabel).filter((l): l is Label => l !== null),
     milestone: it.milestone ? { number: it.milestone.number, title: it.milestone.title } : null,
@@ -136,6 +148,8 @@ export interface GqlProjectIssue {
   number: number;
   title: string;
   state: string; // OPEN | CLOSED
+  createdAt: string;
+  closedAt: string | null;
   url: string;
   repository: { nameWithOwner: string };
   milestone: { number: number; title: string } | null;
@@ -163,6 +177,8 @@ export function mapProjectIssue(
     number: issue.number,
     title: issue.title,
     state: issue.state === "CLOSED" ? "closed" : "open",
+    createdAt: issue.createdAt,
+    closedAt: issue.closedAt,
     assignees: issue.assignees.nodes.map((a) => ({ login: a.login, avatarUrl: a.avatarUrl })),
     labels: issue.labels.nodes.map((l) => ({ name: l.name, color: l.color })),
     milestone: issue.milestone ? { number: issue.milestone.number, title: issue.milestone.title } : null,

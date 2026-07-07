@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -18,12 +18,15 @@ import { useIssues } from "@/hooks/use-issues";
 import { useIssueActions } from "@/hooks/use-issue-mutations";
 import { canCopy, canMove } from "@/lib/transfer";
 import { applyFilters, emptyFilter, type PaneFilter } from "@/lib/filters";
-import { themeById, THEME_STORAGE_KEY } from "@/lib/themes";
+import { DEFAULT_THEME, themeById, THEME_STORAGE_KEY } from "@/lib/themes";
 import type { ActionId } from "@/lib/hotkeys";
 import type { AppConfig, IssueRow, PaneSource, PaneView, RepoRef } from "@/lib/types";
 
 // Issue-only mutations: disabled in the PR view (F3 preview is allowed — it's read-only).
 const PR_DISABLED_ACTIONS = new Set<ActionId>(["edit", "copy", "move", "editIssue", "close", "quickAssign"]);
+
+// Stable no-op subscribe for the `mounted` useSyncExternalStore (state never changes after mount).
+const subscribeNoop = () => () => {};
 
 interface PreviewTarget {
   repo: RepoRef;
@@ -140,6 +143,13 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
   // inline script in layout.tsx paints it before hydration, so this just keeps <html>
   // in sync when the user switches themes in Settings.
   const theme = useAppStore((s) => s.theme);
+  // The store seeds `theme` from localStorage on the client, but the server always
+  // starts from DEFAULT_THEME, so rendering the theme-dependent icon on the first
+  // client render would mismatch the SSR HTML. Gate it behind a post-hydration flag:
+  // the first client render matches the server (DEFAULT_THEME), then swaps in the
+  // real theme after mount. (The inline script in layout.tsx already prevents a CSS flash.)
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
+  const displayMode = themeById(mounted ? theme : DEFAULT_THEME).mode;
   useEffect(() => {
     const def = themeById(theme);
     const el = document.documentElement;
@@ -426,10 +436,10 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
           type="button"
           onClick={() => useAppStore.getState().toggleMode()}
           className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          title={themeById(theme).mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          aria-label={themeById(theme).mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          title={displayMode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          aria-label={displayMode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
         >
-          {themeById(theme).mode === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          {displayMode === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </button>
         <button
           type="button"

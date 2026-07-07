@@ -72,9 +72,13 @@ pane's project:
 
 A repository pane carries an **Issues / Pull Requests** tab. Switch to pull requests and each row
 shows its **author**, **target branch**, and **merge status** — open, merged, or closed, marked by
-the row icon. Filter by state (**Open / Merged / Closed / All**), by **merge date** (today, this
-week, this month), by **target branch**, or by author. Pull-request rows are read-only here: open one
-on GitHub with `Enter`, or preview it with `F3`.
+the row icon. Filter by state (**Open / Merged / Closed / All**), by **target branch**, or by author.
+Pull-request rows are read-only here: open one on GitHub with `Enter`, or preview it with `F3`.
+
+**Filter by date.** Every pane has a date filter that follows the state you're viewing: it ranges
+over the **opened** date for open items, the **closed** date for closed ones, and the **merged** date
+for merged pull requests. Pick a preset (last 7, 30, or 90 days) or an exact **From / To** — so
+"everything merged in the last three days" is a couple of clicks.
 
 ### Columns in the issue view
 
