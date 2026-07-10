@@ -57,6 +57,8 @@ interface AppState {
   selected: Record<PaneId, Set<string>>;
   toggleSelect: (pane: PaneId, key: string) => void;
   clearSelection: (pane: PaneId) => void;
+  /** Replace a pane's whole selection (select all / invert). */
+  setSelection: (pane: PaneId, keys: Set<string>) => void;
   /** Per-pane client-side filter (search / assignee / repo). */
   filters: Record<PaneId, PaneFilter>;
   setFilter: (pane: PaneId, patch: Partial<PaneFilter>) => void;
@@ -89,6 +91,14 @@ interface AppState {
   settingsOpen: boolean;
   openSettings: () => void;
   closeSettings: () => void;
+  /** F / `/` keyboard filter dialog: which pane it edits + whether the search row grabs focus. */
+  filterDialog: { pane: PaneId; focusSearch: boolean } | null;
+  openFilterDialog: (pane: PaneId, focusSearch?: boolean) => void;
+  closeFilterDialog: () => void;
+  /** `?` keyboard cheat-sheet overlay. */
+  helpOpen: boolean;
+  openHelp: () => void;
+  closeHelp: () => void;
   /** Persisted user defaults (hydrated from / saved to localStorage by TotalCommander). */
   config: AppConfig;
   setConfig: (patch: Partial<AppConfig>) => void;
@@ -184,6 +194,8 @@ export const useAppStore = create<AppState>((set) => ({
   clearSelection: (pane) =>
     set((s) => (s.selected[pane].size === 0 ? {} : { selected: { ...s.selected, [pane]: new Set<string>() } })),
 
+  setSelection: (pane, keys) => set((s) => ({ selected: { ...s.selected, [pane]: keys } })),
+
   flashRow: (pane, key) => {
     set((s) => {
       const next = new Set(s.flashed[pane]);
@@ -249,6 +261,14 @@ export const useAppStore = create<AppState>((set) => ({
   settingsOpen: false,
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
+
+  filterDialog: null,
+  openFilterDialog: (pane, focusSearch = false) => set({ filterDialog: { pane, focusSearch } }),
+  closeFilterDialog: () => set({ filterDialog: null }),
+
+  helpOpen: false,
+  openHelp: () => set({ helpOpen: true }),
+  closeHelp: () => set({ helpOpen: false }),
 
   config: emptyConfig(),
   setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),

@@ -18,3 +18,8 @@ export function useMilestones(enabled: boolean) {
 export function useIssueTypes(enabled: boolean) {
   return useQuery({ queryKey: ["issueTypes"], queryFn: api.issueTypes, enabled, staleTime: SOURCES_STALE });
 }
+
+/** The authenticated user's login — powers "@me" in the filter dialog. Never goes stale. */
+export function useViewer(enabled: boolean) {
+  return useQuery({ queryKey: ["viewer"], queryFn: api.viewer, enabled, staleTime: Infinity });
+}

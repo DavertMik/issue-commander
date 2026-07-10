@@ -2,7 +2,7 @@ import type { IssueRow } from "@/lib/types";
 
 // "merged" is a PR-view-only pseudo-state (GitHub lists merged PRs as closed); see sourceToQuery.
 export type StateFilter = "open" | "closed" | "merged" | "all";
-export type SortField = "none" | "number" | "title" | "repo" | "assignee" | "status";
+export type SortField = "none" | "number" | "title" | "repo" | "assignee" | "status" | "created";
 export type SortDir = "asc" | "desc";
 
 /** An inclusive local-date range (yyyy-mm-dd); either bound may be open. */
@@ -30,6 +30,7 @@ export interface PaneFilter {
   repos: string[];
   statuses: string[];
   branches: string[]; // PR target (base) branches, PR view only
+  milestones: string[]; // milestone titles
   state: StateFilter;
   dateRange: DateRange; // ranges over the state's contextual date (dateFieldForState)
   sortBy: SortField;
@@ -42,6 +43,7 @@ export const emptyFilter = (): PaneFilter => ({
   repos: [],
   statuses: [],
   branches: [],
+  milestones: [],
   state: "open",
   dateRange: emptyDateRange(),
   sortBy: "none",
@@ -62,6 +64,7 @@ export function isFilterActive(f: PaneFilter): boolean {
     f.repos.length ||
     f.statuses.length ||
     f.branches.length ||
+    f.milestones.length ||
     isDateRangeActive(f)
   );
 }
@@ -70,6 +73,12 @@ function rowDate(r: IssueRow, field: DateField): string | null {
   if (field === "mergedAt") return r.pr?.mergedAt ?? null;
   if (field === "closedAt") return r.closedAt;
   return r.createdAt;
+}
+
+/** The "User" facet of a row: assignees for issues, the author for pull requests. */
+export function rowUsers(r: IssueRow): string[] {
+  if (r.pr) return r.pr.author ? [r.pr.author.login] : [];
+  return r.assignees.map((a) => a.login);
 }
 
 /** Epoch-ms bounds for a local-date range: [start-of-`from`, end-of-`to`]. */
@@ -105,7 +114,7 @@ export function applyFilters(rows: IssueRow[], f: PaneFilter): IssueRow[] {
   }
   if (f.assignees.length) {
     const set = new Set(f.assignees);
-    out = out.filter((r) => r.assignees.some((a) => set.has(a.login)));
+    out = out.filter((r) => rowUsers(r).some((login) => set.has(login)));
   }
   if (f.repos.length) {
     const set = new Set(f.repos);
@@ -119,6 +128,10 @@ export function applyFilters(rows: IssueRow[], f: PaneFilter): IssueRow[] {
     const set = new Set(f.branches);
     out = out.filter((r) => r.pr?.baseRef != null && set.has(r.pr.baseRef));
   }
+  if (f.milestones.length) {
+    const set = new Set(f.milestones);
+    out = out.filter((r) => r.milestone?.title != null && set.has(r.milestone.title));
+  }
   const q = f.search.trim().toLowerCase();
   if (q) {
     const num = q.replace(/^#/, "");
@@ -127,7 +140,7 @@ export function applyFilters(rows: IssueRow[], f: PaneFilter): IssueRow[] {
 
   if (f.sortBy !== "none") {
     const dir = f.sortDir === "asc" ? 1 : -1;
-    const firstAssignee = (r: IssueRow) => r.assignees[0]?.login ?? "";
+    const firstAssignee = (r: IssueRow) => rowUsers(r)[0] ?? "";
     out = [...out].sort((a, b) => {
       switch (f.sortBy) {
         case "number":
@@ -140,6 +153,8 @@ export function applyFilters(rows: IssueRow[], f: PaneFilter): IssueRow[] {
           return firstAssignee(a).localeCompare(firstAssignee(b)) * dir || (a.number - b.number);
         case "status":
           return (a.projectStatus?.status ?? "").localeCompare(b.projectStatus?.status ?? "") * dir || (a.number - b.number);
+        case "created":
+          return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir || (a.number - b.number);
         default:
           return 0;
       }
@@ -148,9 +163,10 @@ export function applyFilters(rows: IssueRow[], f: PaneFilter): IssueRow[] {
   return out;
 }
 
-export function distinctAssignees(rows: IssueRow[]): string[] {
+/** Distinct "User" values across rows (assignees of issues, authors of PRs). */
+export function distinctUsers(rows: IssueRow[]): string[] {
   const set = new Set<string>();
-  for (const r of rows) for (const a of r.assignees) set.add(a.login);
+  for (const r of rows) for (const login of rowUsers(r)) set.add(login);
   return [...set].sort((a, b) => a.localeCompare(b));
 }
 
@@ -170,5 +186,11 @@ export function distinctStatuses(rows: IssueRow[]): string[] {
 export function distinctBranches(rows: IssueRow[]): string[] {
   const set = new Set<string>();
   for (const r of rows) if (r.pr?.baseRef) set.add(r.pr.baseRef);
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+export function distinctMilestones(rows: IssueRow[]): string[] {
+  const set = new Set<string>();
+  for (const r of rows) if (r.milestone?.title) set.add(r.milestone.title);
   return [...set].sort((a, b) => a.localeCompare(b));
 }

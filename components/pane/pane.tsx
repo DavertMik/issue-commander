@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { contextColumn } from "@/lib/source";
-import { applyFilters, distinctAssignees, distinctBranches, distinctRepos, distinctStatuses, type SortField } from "@/lib/filters";
+import {
+  applyFilters,
+  distinctBranches,
+  distinctMilestones,
+  distinctRepos,
+  distinctStatuses,
+  distinctUsers,
+  type SortField,
+} from "@/lib/filters";
 import { PaneHeader } from "@/components/pane/pane-header";
 import { PaneFilterBar } from "@/components/pane/pane-filter-bar";
 import { IssueTable } from "@/components/pane/issue-table";
@@ -16,7 +24,11 @@ import { useIssueActions } from "@/hooks/use-issue-mutations";
 import type { IssuesQuery } from "@/hooks/use-issues";
 import type { IssueRow, RepoRef } from "@/lib/types";
 
-const PRELOAD_INTERVAL_MS = 5000;
+// Background-preload cadence. Repo (core REST) and project (GraphQL) panes have generous
+// quota (5000/hr), so chain pages back-to-back with only a small yield. Milestone/recent
+// panes are Search-API-backed, which caps at 30 req/min — stay well under that.
+const PRELOAD_INTERVAL_MS = 400;
+const SEARCH_PRELOAD_INTERVAL_MS = 5000;
 
 interface PreviewTarget {
   repo: RepoRef;
@@ -53,19 +65,25 @@ export function Pane({
   const isPulls = pane.view === "pulls";
   const lastColumn = query.lastColumn ?? contextColumn(pane.source);
   const rows = useMemo(() => applyFilters(allRows, filter), [allRows, filter]);
-  const assignees = useMemo(() => distinctAssignees(allRows), [allRows]);
+  const assignees = useMemo(() => distinctUsers(allRows), [allRows]);
   const repos = useMemo(() => distinctRepos(allRows), [allRows]);
   const statuses = useMemo(() => distinctStatuses(allRows), [allRows]);
   const branches = useMemo(() => (isPulls ? distinctBranches(allRows) : []), [allRows, isPulls]);
+  // A milestone pane's rows all share one title — the filter would be a no-op there.
+  const isMilestonePane = pane.source?.kind === "milestone";
+  const milestones = useMemo(() => (isMilestonePane ? [] : distinctMilestones(allRows)), [allRows, isMilestonePane]);
 
   // Background preload: pull the next page every few seconds until fully loaded.
   // The manual "load more" sentinel stays available if the user scrolls faster.
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
+  // Milestone/recent panes list via the Search API (30 req/min); everything else is core/GraphQL.
+  const usesSearchApi = pane.source?.kind === "milestone" || pane.source?.kind === "recent";
+  const preloadInterval = usesSearchApi ? SEARCH_PRELOAD_INTERVAL_MS : PRELOAD_INTERVAL_MS;
   useEffect(() => {
     if (!hasNextPage || isFetchingNextPage) return;
-    const t = setTimeout(fetchNextPage, PRELOAD_INTERVAL_MS);
+    const t = setTimeout(fetchNextPage, preloadInterval);
     return () => clearTimeout(t);
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, allRows.length]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, allRows.length, preloadInterval]);
   // selectable indices include the trailing "load more" sentinel when there's a next page.
   const maxIndex = Math.max(0, rows.length - 1 + (query.hasNextPage ? 1 : 0));
   const clampedIndex = Math.min(pane.selectedIndex, maxIndex);
@@ -220,6 +238,7 @@ export function Pane({
           repos={repos}
           statuses={statuses}
           branches={branches}
+          milestones={milestones}
           showRepo={lastColumn === "repo"}
           view={pane.view}
           matchCount={rows.length}

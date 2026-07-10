@@ -158,3 +158,24 @@ export async function copyIssue(body: CopyBody): Promise<CopyResult> {
   const projectItemId = await addProjectItem(body.targetProjectId, body.issueNodeId);
   return { projectItemId };
 }
+
+/**
+ * Reconcile a pull request's requested reviewers. GitHub's request/remove endpoints are
+ * additive/subtractive (they don't take a desired set), so the caller computes the diff and we
+ * apply both sides. Empty arrays are skipped to avoid 422s on no-op calls.
+ */
+export async function setReviewers(
+  owner: string,
+  repo: string,
+  number: number,
+  add: string[],
+  remove: string[],
+): Promise<void> {
+  const octokit = getOctokit();
+  if (remove.length) {
+    await octokit.rest.pulls.removeRequestedReviewers({ owner, repo, pull_number: number, reviewers: remove });
+  }
+  if (add.length) {
+    await octokit.rest.pulls.requestReviewers({ owner, repo, pull_number: number, reviewers: add });
+  }
+}

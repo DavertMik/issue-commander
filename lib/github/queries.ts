@@ -38,7 +38,7 @@ export const PROJECT_ITEMS_QUERY = /* GraphQL */ `
       ... on ProjectV2 {
         title
         number
-        items(first: 50, after: $cursor) {
+        items(first: 100, after: $cursor) {
           pageInfo { hasNextPage endCursor }
           nodes {
             id

@@ -72,13 +72,13 @@ export interface RestPull {
   head: { ref: string };
   user?: { login: string; avatar_url: string } | null; // PR author
   assignees?: Array<{ login: string; avatar_url: string }> | null;
+  requested_reviewers?: Array<{ login: string } | null> | null;
   labels?: Array<string | { name?: string | null; color?: string | null }>;
   milestone?: { number: number; title: string } | null;
 }
 
 export function mapRestPull(pull: RestPull, repo: RepoRef): IssueRow {
   const merged = pull.merged_at != null;
-  // PRs rarely have explicit assignees; show the author in the person column instead.
   const author = pull.user ? { login: pull.user.login, avatarUrl: pull.user.avatar_url } : null;
   return {
     number: pull.number,
@@ -86,7 +86,8 @@ export function mapRestPull(pull: RestPull, repo: RepoRef): IssueRow {
     state: pull.state === "closed" ? "closed" : "open",
     createdAt: pull.created_at,
     closedAt: pull.closed_at ?? null,
-    assignees: author ? [author] : [],
+    // Real assignees, same as issues (assign/filter work uniformly); the author lives in pr.author.
+    assignees: (pull.assignees ?? []).map((a) => ({ login: a.login, avatarUrl: a.avatar_url })),
     labels: (pull.labels ?? []).map(toLabel).filter((l): l is Label => l !== null),
     milestone: pull.milestone ? { number: pull.milestone.number, title: pull.milestone.title } : null,
     repo,
@@ -99,6 +100,10 @@ export function mapRestPull(pull: RestPull, repo: RepoRef): IssueRow {
       baseRef: pull.base.ref,
       headRef: pull.head.ref,
       draft: !!pull.draft,
+      requestedReviewers: (pull.requested_reviewers ?? [])
+        .map((r) => r?.login)
+        .filter((l): l is string => typeof l === "string"),
+      author,
     },
   };
 }

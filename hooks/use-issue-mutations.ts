@@ -226,6 +226,7 @@ export function useIssueActions() {
       milestone?: { number: number | null; title: string }; // changed -> new value (null = cleared)
       type?: string | null; // changed -> new Issue Type name (null = cleared)
       status?: { projectId: string; itemId: string; fieldId: string; optionId: string; optionName: string };
+      reviewers?: { add: string[]; remove: string[] }; // pull-request review requests to add/withdraw
     }): Promise<boolean> {
       const restChanged =
         args.state !== undefined ||
@@ -233,7 +234,8 @@ export function useIssueActions() {
         args.labels !== undefined ||
         args.milestone !== undefined ||
         args.type !== undefined;
-      if (!restChanged && !args.status) return true;
+      const reviewersChanged = !!args.reviewers && (args.reviewers.add.length > 0 || args.reviewers.remove.length > 0);
+      if (!restChanged && !args.status && !reviewersChanged) return true;
 
       beginOps([args.issueKey]);
       const prev = qc.getQueriesData<IssuesData>({ queryKey: ["issues"] });
@@ -247,6 +249,12 @@ export function useIssueActions() {
         if (args.type !== undefined) nr.type = args.type;
         if (args.status && r.projectStatus?.projectId === args.status.projectId) {
           nr.projectStatus = { ...r.projectStatus, status: args.status.optionName, optionId: args.status.optionId };
+        }
+        if (reviewersChanged && r.pr) {
+          const { add, remove } = args.reviewers!;
+          const next = r.pr.requestedReviewers.filter((x) => !remove.includes(x));
+          for (const x of add) if (!next.includes(x)) next.push(x);
+          nr.pr = { ...r.pr, requestedReviewers: next };
         }
         return nr;
       };
@@ -286,6 +294,15 @@ export function useIssueActions() {
             itemId: args.status.itemId,
             fieldId: args.status.fieldId,
             optionId: args.status.optionId,
+          });
+        }
+        if (reviewersChanged) {
+          await api.setReviewers({
+            owner: args.owner,
+            repo: args.repo,
+            number: args.number,
+            add: args.reviewers!.add,
+            remove: args.reviewers!.remove,
           });
         }
         endOp(args.issueKey, true);

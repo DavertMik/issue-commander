@@ -26,7 +26,8 @@ function daysAgo(n: number): string {
   return ymd(d);
 }
 
-const PRESETS: { label: string; range: () => DateRange }[] = [
+/** Shared with the F-key filter dialog, which offers the same presets as a dropdown. */
+export const DATE_PRESETS: { label: string; range: () => DateRange }[] = [
   { label: "Today", range: () => ({ from: ymd(new Date()), to: ymd(new Date()) }) },
   { label: "Last 7 days", range: () => ({ from: daysAgo(6), to: ymd(new Date()) }) },
   { label: "Last 30 days", range: () => ({ from: daysAgo(29), to: ymd(new Date()) }) },
@@ -38,7 +39,7 @@ function fmt(d: string): string {
   return new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function summary(label: string, r: DateRange): string {
+export function summarizeRange(label: string, r: DateRange): string {
   if (!r.from && !r.to) return `${label} anytime`;
   if (r.from && r.to) return r.from === r.to ? `${label} ${fmt(r.from)}` : `${label} ${fmt(r.from)} – ${fmt(r.to)}`;
   if (r.from) return `${label} ≥ ${fmt(r.from)}`;
@@ -57,7 +58,7 @@ export function DateRangeFilter({ label, value, onChange, className }: Props) {
           )}
         >
           <CalendarDays className="size-3.5 shrink-0 opacity-70" />
-          <span className="truncate">{summary(label, value)}</span>
+          <span className="truncate">{summarizeRange(label, value)}</span>
         </PopoverTrigger>
         {active && (
           <button
@@ -73,7 +74,7 @@ export function DateRangeFilter({ label, value, onChange, className }: Props) {
 
       <PopoverContent align="start" className="w-64 gap-2">
         <div className="flex flex-wrap gap-1">
-          {PRESETS.map((p) => (
+          {DATE_PRESETS.map((p) => (
             <button
               key={p.label}
               type="button"

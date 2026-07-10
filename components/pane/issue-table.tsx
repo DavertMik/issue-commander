@@ -34,11 +34,11 @@ const GRID_CLASS = "grid items-center gap-2.5 px-3";
 const GRID_STYLE: React.CSSProperties = { gridTemplateColumns: "var(--tc-cols)" };
 
 // All columns are fixed-width and resizable; the trailing context column flexes to fill.
-type ColKey = "number" | "title" | "assignee" | "labels" | "status";
-const DEFAULT_WIDTHS: Record<ColKey, number> = { number: 96, title: 340, assignee: 116, labels: 184, status: 116 };
+type ColKey = "number" | "title" | "assignee" | "labels" | "status" | "opened";
+const DEFAULT_WIDTHS: Record<ColKey, number> = { number: 96, title: 340, assignee: 116, labels: 184, status: 116, opened: 120 };
 
 function templateFrom(w: Record<ColKey, number>): string {
-  return `${w.number}px ${w.title}px ${w.assignee}px ${w.labels}px ${w.status}px minmax(6rem,1fr)`;
+  return `${w.number}px ${w.title}px ${w.assignee}px ${w.labels}px ${w.status}px ${w.opened}px minmax(6rem,1fr)`;
 }
 
 function StateIcon({ state }: { state: IssueState }) {
@@ -133,13 +133,17 @@ const Row = memo(function Row({ row, index, lastColumn, view, selected, active, 
         <span className={cn("truncate", row.state === "closed" && !isPr && "text-muted-foreground")}>{row.title}</span>
       </div>
       <div className="overflow-hidden">
-        <AssigneeAvatars assignees={row.assignees} />
+        {/* PRs show their author here (assignees carries the real assignees for F7/Ctrl+U). */}
+        <AssigneeAvatars assignees={isPr ? (row.pr?.author ? [row.pr.author] : []) : row.assignees} />
       </div>
       <div className="overflow-hidden">
         <LabelBadges labels={row.labels} />
       </div>
       <div className="overflow-hidden text-sm">
         {isPr ? <BranchCell row={row} /> : <StatusCell ps={row.projectStatus} />}
+      </div>
+      <div className="flex items-center overflow-hidden text-sm text-muted-foreground">
+        <TimeLabel iso={row.createdAt} className="cursor-pointer truncate text-xs hover:text-foreground hover:underline" />
       </div>
       <div className="flex items-center overflow-hidden truncate text-sm text-muted-foreground">
         {isPr ? (
@@ -312,9 +316,10 @@ export function IssueTable({
           sortDir={sortDir}
           onSort={onSort}
         />
+        <HeaderCell label="Opened" resizes="status" onResize={startResize} sort="created" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
         <HeaderCell
           label={view === "pulls" ? "Merged" : lastColumn === "milestone" ? "Milestone" : "Repo"}
-          resizes="status"
+          resizes="opened"
           onResize={startResize}
           sort={view !== "pulls" && lastColumn === "repo" ? "repo" : undefined}
           sortBy={sortBy}

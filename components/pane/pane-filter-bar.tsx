@@ -36,6 +36,7 @@ interface Props {
   repos: string[];
   statuses: string[];
   branches: string[];
+  milestones: string[];
   showRepo: boolean;
   view: PaneView;
   matchCount: number;
@@ -50,6 +51,7 @@ export function PaneFilterBar({
   repos,
   statuses,
   branches,
+  milestones,
   showRepo,
   view,
   matchCount,
@@ -91,14 +93,26 @@ export function PaneFilterBar({
         />
       </div>
 
+      {/* "User" = assignee for issues, author for pull requests (rowUsers). */}
       <SingleSearchCombo
-        placeholder={view === "pulls" ? "All authors" : "All assignees"}
+        placeholder="All users"
         searchPlaceholder="Search users…"
         options={assignees.map((a) => ({ value: a, label: a }))}
         value={filter.assignees[0] ?? null}
         onChange={(v) => onChange({ assignees: v ? [v] : [] })}
         className="h-7 w-40"
       />
+
+      {milestones.length > 0 && (
+        <MultiSearchCombo
+          placeholder="All milestones"
+          searchPlaceholder="Search milestones…"
+          options={milestones.map((m) => ({ value: m, label: m }))}
+          selected={filter.milestones}
+          onChange={(next) => onChange({ milestones: next })}
+          className="h-7 w-44"
+        />
+      )}
 
       {dateField && (
         <DateRangeFilter

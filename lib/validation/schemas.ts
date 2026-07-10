@@ -133,3 +133,17 @@ export const setStatusBodySchema = z.object({
   optionId: z.string().min(1),
 });
 export type SetStatusBody = z.infer<typeof setStatusBodySchema>;
+
+/** POST /api/actions/set-reviewers — reconcile a pull request's requested reviewers. */
+export const setReviewersBodySchema = z
+  .object({
+    owner: z.string().min(1),
+    repo: z.string().min(1),
+    number: z.number().int().positive(),
+    add: z.array(z.string()).default([]), // logins to request review from
+    remove: z.array(z.string()).default([]), // logins whose review request to withdraw
+  })
+  .refine((b) => b.add.length > 0 || b.remove.length > 0, {
+    message: "At least one of add/remove must be non-empty",
+  });
+export type SetReviewersBody = z.infer<typeof setReviewersBodySchema>;

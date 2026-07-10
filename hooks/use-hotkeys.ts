@@ -22,7 +22,17 @@ export function useHotkeys(onAction: (a: ActionId) => void) {
       const st = useAppStore.getState();
       // let dialogs/pickers/the new-issue form own the keyboard
       const newForm = st.panes.pane1.mode === "new" || st.panes.pane2.mode === "new";
-      if (st.selector.open || st.confirm || st.editTargets || st.quickAssign || newForm || st.settingsOpen) return;
+      if (
+        st.selector.open ||
+        st.confirm ||
+        st.editTargets ||
+        st.quickAssign ||
+        newForm ||
+        st.settingsOpen ||
+        st.filterDialog ||
+        st.helpOpen
+      )
+        return;
       const binding = matchBinding(e);
       if (!binding) return;
       if (binding.preventDefault) e.preventDefault();

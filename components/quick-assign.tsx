@@ -9,7 +9,7 @@ import { useIssueActions } from "@/hooks/use-issue-mutations";
 const MENU_W = 256;
 const MENU_H = 300;
 
-/** Ctrl+A — a searchable assignee picker anchored to the selected row; applies optimistically. */
+/** Ctrl+U — a searchable assignee picker anchored to the selected row; applies optimistically. */
 export function QuickAssignPicker() {
   const target = useAppStore((s) => s.quickAssign);
   const close = useAppStore((s) => s.closeQuickAssign);

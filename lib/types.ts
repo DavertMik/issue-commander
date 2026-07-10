@@ -42,6 +42,8 @@ export interface PullMeta {
   baseRef: string; // target branch the PR merges into
   headRef: string; // source branch
   draft: boolean;
+  requestedReviewers: string[]; // logins of users whose review is currently requested
+  author: Assignee | null; // PR author — `assignees` holds the real assignees, like issues
 }
 
 /** Derived PR status shown in the PR view (issues only ever have open/closed). */

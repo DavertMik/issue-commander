@@ -50,6 +50,7 @@ app/
     actions/{move,copy,set-status}/route.ts
     project-status/route.ts               # GET a project's Status field + options
     repo-options/route.ts                 # GET assignees + labels + open milestones for a repo
+    viewer/route.ts                       # GET the token holder's login (filter dialog "@me")
     img/route.ts                          # auth proxy for GitHub attachment images
 lib/
   github/{token,client,org,errors,cache,queries,graphql}.ts   # octokit (REST+GraphQL), gh token, org, GraphQL ops
@@ -68,7 +69,7 @@ hooks/
 components/
   total-commander.tsx     # orchestrator: 2 panes + footer, hotkey dispatch, dialogs, prefetch, persistence
   pane/*                  # pane, pane-header, pane-filter-bar, issue-table, issue-preview, inline-editor, pane-empty
-  edit-dialog.tsx · source-selector.tsx · confirm-dialog.tsx · multi-select.tsx · footer.tsx · labels.tsx · assignees.tsx
+  edit-dialog.tsx · filter-dialog.tsx · help-dialog.tsx · source-selector.tsx · confirm-dialog.tsx · multi-select.tsx · footer.tsx · labels.tsx · assignees.tsx
 ```
 
 ## Key concepts
@@ -113,10 +114,19 @@ visibly revert the optimistic change). See `isMilestoneQuery` / `reconcile()` in
 
 ## Keyboard (Total Commander style)
 
-`Tab` switch pane · `↑/↓` move · `PageUp/PageDown` ±10 · `Enter` open in new tab ·
-`Ins` select (outer ring) + advance · `F1/F2` source selector for left/right pane ·
+`Tab` switch pane · `↑/↓` move · `PageUp/PageDown` ±10 · `Home/End` first/last ·
+`Enter` open in new tab · `Ins` select (outer ring) + advance · `Shift+↑/↓` mark and move ·
+`+`/`Ctrl+A` mark all · `−` unmark all · `*` invert marks · `F1/F2` source selector for left/right pane ·
 `F3` preview (follows the cursor; the other pane) · `F4` inline edit body ·
-`F5` copy → project · `F6` move · `F7`/`Space` quick-edit modal · `F8` close.
+`F5` copy → project · `F6` move · `F7`/`Space` quick-edit modal · `F8` close (Enter confirms) ·
+`Ctrl+U` quick-assign · `Alt+Enter` new issue · `Ctrl+R` refetch both panes · `?` shortcut cheat sheet.
+`F` (or `/`/`Ctrl+F` with search focused) opens the **filter dialog** (`filter-dialog.tsx`) for the
+active pane: each row has a letter hotkey (`T`ype · `S`tate · `U`ser · `M`ilestone · `P` status ·
+`R`epo · `B`ranch · `D`ate · `X` clear), Tab moves rows, Enter applies the draft, Esc cancels. It
+edits a local draft with a live match count; "@me" resolves via `/api/viewer`.
+**"User" semantics (`rowUsers` in `lib/filters.ts`): assignees for issues, the AUTHOR for pull
+requests** — PR rows carry real assignees (shown/edited via F7/Ctrl+U) while `pr.author` drives the
+PR table column, the user filter, and assignee-sorting.
 The global handler (`use-hotkeys.ts`) bails while an input/select/textarea is focused or a dialog is open.
 
 ## UI notes

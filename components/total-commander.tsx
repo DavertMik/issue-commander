@@ -9,6 +9,8 @@ import { Footer, type FnKey } from "@/components/footer";
 import { SourceSelector } from "@/components/source-selector";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EditDialog } from "@/components/edit-dialog";
+import { FilterDialog } from "@/components/filter-dialog";
+import { HelpDialog } from "@/components/help-dialog";
 import { QuickAssignPicker } from "@/components/quick-assign";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { Moon, Plus, Settings, Sun } from "lucide-react";
@@ -17,13 +19,17 @@ import { useHotkeys } from "@/hooks/use-hotkeys";
 import { useIssues } from "@/hooks/use-issues";
 import { useIssueActions } from "@/hooks/use-issue-mutations";
 import { canCopy, canMove } from "@/lib/transfer";
+import { contextColumn } from "@/lib/source";
 import { applyFilters, emptyFilter, type PaneFilter } from "@/lib/filters";
 import { DEFAULT_THEME, themeById, THEME_STORAGE_KEY } from "@/lib/themes";
 import type { ActionId } from "@/lib/hotkeys";
 import type { AppConfig, IssueRow, PaneSource, PaneView, RepoRef } from "@/lib/types";
 
 // Issue-only mutations: disabled in the PR view (F3 preview is allowed — it's read-only).
-const PR_DISABLED_ACTIONS = new Set<ActionId>(["edit", "copy", "move", "editIssue", "close", "quickAssign"]);
+// Pull requests can't be transferred/copied between boards and have no inline-body flow, but
+// F7 quick-edit (state, assignee, labels, reviewers, milestone), Ctrl+U quick-assign, and
+// F8 close DO apply to them (PRs are issues to those APIs).
+const PR_DISABLED_ACTIONS = new Set<ActionId>(["edit", "copy", "move"]);
 
 // Stable no-op subscribe for the `mounted` useSyncExternalStore (state never changes after mount).
 const subscribeNoop = () => () => {};
@@ -218,6 +224,12 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
         case "pageDown":
           st.moveSelection(activeId, PAGE_JUMP, navLen);
           break;
+        case "home":
+          st.setSelectedIndex(activeId, 0);
+          break;
+        case "end":
+          st.setSelectedIndex(activeId, Math.max(0, navLen - 1));
+          break;
         case "open":
           if (onSentinel) ctx.fetchNextPage();
           else if (row) window.open(row.htmlUrl, "_blank", "noopener,noreferrer");
@@ -228,17 +240,57 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
         case "selector2":
           st.openSelector("pane2");
           break;
-        case "escape":
+        case "escape": {
+          // Layered back-out: open previews first, then the active pane's marks.
+          let closedPreview = false;
           (["pane1", "pane2"] as PaneId[]).forEach((p) => {
-            if (st.panes[p].mode === "preview") st.clearPreview(p);
+            if (st.panes[p].mode === "preview") {
+              st.clearPreview(p);
+              closedPreview = true;
+            }
           });
+          if (!closedPreview) st.clearSelection(activeId);
           break;
+        }
         case "toggleSelect":
           // Mark the current row and advance, so Ins-Ins-Ins selects consecutively (TC-style).
           if (row) {
             st.toggleSelect(activeId, `${row.repo.name}#${row.number}`);
             st.moveSelection(activeId, 1, navLen);
           }
+          break;
+        case "selectUp":
+        case "selectDown":
+          // Shift+↑/↓ — TC-style mark-and-move range selection.
+          if (row) {
+            st.toggleSelect(activeId, `${row.repo.name}#${row.number}`);
+            st.moveSelection(activeId, a === "selectUp" ? -1 : 1, navLen);
+          }
+          break;
+        case "selectAll":
+          st.setSelection(activeId, new Set(activeRows.map((r) => `${r.repo.name}#${r.number}`)));
+          break;
+        case "selectNone":
+          st.clearSelection(activeId);
+          break;
+        case "selectInvert": {
+          const cur = st.selected[activeId];
+          st.setSelection(
+            activeId,
+            new Set(activeRows.map((r) => `${r.repo.name}#${r.number}`).filter((key) => !cur.has(key))),
+          );
+          break;
+        }
+        case "openFilter":
+        case "openFilterSearch":
+          // Nothing to filter without a source; the empty pane's hint points at F1/F2.
+          if (activeSource) st.openFilterDialog(activeId, a === "openFilterSearch");
+          break;
+        case "refresh":
+          void qc.invalidateQueries({ queryKey: ["issues"] });
+          break;
+        case "help":
+          st.openHelp();
           break;
         case "preview":
           if (!row) break;
@@ -271,9 +323,10 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
         }
         case "close": {
           if (!targets.length) break;
+          const noun = targets.every((r) => r.pr) ? "pull request" : "issue";
           st.requestConfirm({
             kind: "close",
-            title: targets.length === 1 ? `Close issue #${targets[0].number}?` : `Close ${targets.length} issues?`,
+            title: targets.length === 1 ? `Close ${noun} #${targets[0].number}?` : `Close ${targets.length} ${noun}s?`,
             description: targets.length === 1 ? targets[0].title : targets.map((r) => `#${r.number}`).join(", "),
             confirmLabel: "Close",
             onConfirm: () => {
@@ -326,7 +379,7 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
         }
       }
     },
-    [actions],
+    [actions, qc],
   );
 
   useHotkeys(runAction);
@@ -395,10 +448,10 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
       hotkey: "F7",
       label: "Fields",
       onClick: () => runAction("editIssue"),
-      disabled: !activeRow || activeIsPulls,
-      reason: activeIsPulls ? prReason : "Edit assignees · milestone · status · labels (Space)",
+      disabled: !activeRow,
+      reason: activeIsPulls ? "Edit state · assignee · reviewers · labels (Space)" : "Edit assignees · milestone · status · labels (Space)",
     },
-    { hotkey: "F8", label: `Close${suffix}`, onClick: () => runAction("close"), disabled: !footerRow || activeIsPulls, reason: activeIsPulls ? prReason : undefined },
+    { hotkey: "F8", label: `Close${suffix}`, onClick: () => runAction("close"), disabled: !footerRow },
   ];
 
   if (!org) {
@@ -429,9 +482,14 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
           <Plus className="size-3.5" />
           New <span className="opacity-50">Alt+Enter</span>
         </button>
-        <span className="ml-auto hidden font-mono text-xs text-muted-foreground md:block">
-          Tab switch · F1/F2 source · Ins select · ↑↓ navigate · Enter open · Alt+Enter new
-        </span>
+        <button
+          type="button"
+          onClick={() => useAppStore.getState().openHelp()}
+          title="All keyboard shortcuts (?)"
+          className="ml-auto hidden font-mono text-xs text-muted-foreground transition-colors hover:text-foreground md:block"
+        >
+          Tab switch · F1/F2 source · F filter · Ins select · Enter open · <span className="text-primary">? keys</span>
+        </button>
         <button
           type="button"
           onClick={() => useAppStore.getState().toggleMode()}
@@ -461,6 +519,14 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
       <SourceSelector />
       <ConfirmDialog />
       <EditDialog />
+      <FilterDialog
+        rowsByPane={{ pane1: q1.rows, pane2: q2.rows }}
+        lastColumnByPane={{
+          pane1: q1.lastColumn ?? contextColumn(panes.pane1.source),
+          pane2: q2.lastColumn ?? contextColumn(panes.pane2.source),
+        }}
+      />
+      <HelpDialog />
       <QuickAssignPicker />
       <SettingsDialog />
     </div>

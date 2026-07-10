@@ -11,7 +11,14 @@ import type {
   RepoOptions,
   StatusFieldData,
 } from "@/lib/types";
-import type { CopyBody, CreateIssueBody, MoveBody, PatchIssueBody, SetStatusBody } from "@/lib/validation/schemas";
+import type {
+  CopyBody,
+  CreateIssueBody,
+  MoveBody,
+  PatchIssueBody,
+  SetReviewersBody,
+  SetStatusBody,
+} from "@/lib/validation/schemas";
 
 export class ApiRequestError extends Error {
   code?: string;
@@ -84,6 +91,8 @@ export const api = {
 
   issueTypes: () => req<{ types: string[] }>("/api/issue-types").then((r) => r.types),
 
+  viewer: () => req<{ login: string }>("/api/viewer").then((r) => r.login),
+
   patchIssue: (owner: string, repo: string, number: number, body: PatchIssueBody) =>
     withRetry(() =>
       req<IssueRow>(`/api/issues/${owner}/${repo}/${number}`, {
@@ -119,6 +128,15 @@ export const api = {
   setStatus: (body: SetStatusBody) =>
     withRetry(() =>
       req<{ ok: boolean }>("/api/actions/set-status", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
+
+  setReviewers: (body: SetReviewersBody) =>
+    withRetry(() =>
+      req<{ ok: boolean }>("/api/actions/set-reviewers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),

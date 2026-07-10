@@ -44,12 +44,18 @@ function EditBody({ row, onClose, saveRef }: { row: IssueRow; onClose: () => voi
   // Combobox popups portal here (inside the dialog) so interacting with them doesn't dismiss the modal.
   const popupContainer = useRef<HTMLDivElement>(null);
 
+  // Pull requests reuse this dialog: state/assignee/labels/milestone all apply, plus PR-only
+  // reviewers. Type doesn't apply to PRs, and the author can't be requested as a reviewer.
+  const isPr = !!row.pr;
+  const prAuthor = row.pr?.author?.login ?? null;
+
   const initState = row.state;
   const initType = row.type ?? null;
   const initAssignee = row.assignees[0]?.login ?? null;
   const initLabels = row.labels.map((l) => l.name);
   const initMilestone = row.milestone?.number ?? null;
   const initStatus = row.projectStatus?.optionId ?? null;
+  const initReviewers = row.pr?.requestedReviewers ?? [];
 
   const [state, setState] = useState<"open" | "closed">(initState);
   const [type, setType] = useState<string | null>(initType);
@@ -57,17 +63,28 @@ function EditBody({ row, onClose, saveRef }: { row: IssueRow; onClose: () => voi
   const [labels, setLabels] = useState(() => new Set(initLabels));
   const [milestoneNumber, setMilestoneNumber] = useState<number | null>(initMilestone);
   const [statusOptionId, setStatusOptionId] = useState<string | null>(initStatus);
+  const [reviewers, setReviewers] = useState(() => new Set(initReviewers));
 
   const issueKey = `${row.repo.name}#${row.number}`;
   const typeOptions = [...new Set([...(issueTypes.data ?? []), ...(initType ? [initType] : [])])];
+  // Requestable reviewers = the repo's assignable users minus the PR author, plus anyone already
+  // requested (so their removable chip renders even if they're outside the paginated assignee list).
+  const reviewerOptions = [
+    ...new Set([
+      ...(repoOpts.data?.assignees ?? []).map((a) => a.login).filter((l) => l !== prAuthor),
+      ...initReviewers,
+    ]),
+  ].map((login) => ({ value: login, label: login }));
 
+  const reviewersDirty = isPr && !setEq(reviewers, new Set(initReviewers));
   const dirty =
     state !== initState ||
     type !== initType ||
     assignee !== initAssignee ||
     !setEq(labels, new Set(initLabels)) ||
     milestoneNumber !== initMilestone ||
-    statusOptionId !== initStatus;
+    statusOptionId !== initStatus ||
+    reviewersDirty;
 
   // Optimistic save: fire the change and close immediately; the cache updates instantly
   // and rolls back with a toast if the request fails.
@@ -106,6 +123,13 @@ function EditBody({ row, onClose, saveRef }: { row: IssueRow; onClose: () => voi
         };
       }
     }
+    if (reviewersDirty) {
+      const initSet = new Set(initReviewers);
+      payload.reviewers = {
+        add: [...reviewers].filter((r) => !initSet.has(r)),
+        remove: initReviewers.filter((r) => !reviewers.has(r)),
+      };
+    }
     void actions.applyIssueEdit(payload);
     onClose();
   }
@@ -125,7 +149,7 @@ function EditBody({ row, onClose, saveRef }: { row: IssueRow; onClose: () => voi
           </select>
         </Field>
 
-        {typeOptions.length > 0 && (
+        {!isPr && typeOptions.length > 0 && (
           <Field label="Type">
             <select className={selectCls} value={type ?? ""} onChange={(e) => setType(e.target.value || null)}>
               <option value="">No type</option>
@@ -188,6 +212,20 @@ function EditBody({ row, onClose, saveRef }: { row: IssueRow; onClose: () => voi
             container={popupContainer}
           />
         </Field>
+
+        {isPr && (
+          <Field label="Reviewers">
+            <MultiSearchCombo
+              chips
+              placeholder="Request reviews…"
+              searchPlaceholder="Search users…"
+              options={reviewerOptions}
+              selected={[...reviewers]}
+              onChange={(next) => setReviewers(new Set(next))}
+              container={popupContainer}
+            />
+          </Field>
+        )}
       </div>
 
       <DialogFooter className="gap-2 border-t border-border bg-muted/20 px-4 py-3">
