@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { readCache, writeCache } from "@/lib/option-cache";
+import { readCache, readCacheTime, writeCache } from "@/lib/option-cache";
 import type { RepoOptions } from "@/lib/types";
 
 export function useRepoOptions(repo: string | null) {
@@ -12,9 +12,10 @@ export function useRepoOptions(repo: string | null) {
       return data;
     },
     enabled: !!repo,
-    // Seed from localStorage so options show instantly; refetch in the background.
+    // Seed from localStorage so options show instantly; the real timestamp means the
+    // background refetch only happens once the cached copy is older than staleTime.
     initialData: () => (repo ? readCache<RepoOptions>(`repo:${repo}`) : undefined),
-    initialDataUpdatedAt: 0,
+    initialDataUpdatedAt: () => (repo ? readCacheTime(`repo:${repo}`) : 0),
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { readCache, writeCache } from "@/lib/option-cache";
+import { readCache, readCacheTime, writeCache } from "@/lib/option-cache";
 import type { StatusFieldData } from "@/lib/types";
 
 export function useStatusField(projectId: string | null) {
@@ -13,7 +13,7 @@ export function useStatusField(projectId: string | null) {
     },
     enabled: !!projectId,
     initialData: () => (projectId ? readCache<StatusFieldData>(`status:${projectId}`) : undefined),
-    initialDataUpdatedAt: 0,
+    initialDataUpdatedAt: () => (projectId ? readCacheTime(`status:${projectId}`) : 0),
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -61,6 +61,9 @@ interface AppState {
   setSelection: (pane: PaneId, keys: Set<string>) => void;
   /** Per-pane client-side filter (search / assignee / repo). */
   filters: Record<PaneId, PaneFilter>;
+  /** The inactive view's filter per pane: Issues and Pull Requests each keep their
+   * own filter, swapped in/out by setView so PR-only facets never leak into Issues. */
+  filterStash: Record<PaneId, Partial<Record<PaneView, PaneFilter>>>;
   setFilter: (pane: PaneId, patch: Partial<PaneFilter>) => void;
   clearFilter: (pane: PaneId) => void;
 
@@ -155,6 +158,7 @@ export const useAppStore = create<AppState>((set) => ({
   flashed: { pane1: new Set<string>(), pane2: new Set<string>() },
   selected: { pane1: new Set<string>(), pane2: new Set<string>() },
   filters: { pane1: emptyFilter(), pane2: emptyFilter() },
+  filterStash: { pane1: {}, pane2: {} },
   ops: {},
 
   beginOp: (key) => set((s) => ({ ops: { ...s.ops, [key]: "pending" } })),
@@ -221,6 +225,7 @@ export const useAppStore = create<AppState>((set) => ({
       ...patchPane(s, p, { source, selectedIndex: 0, mode: "list", view: "issues" }),
       selected: { ...s.selected, [p]: new Set<string>() },
       filters: { ...s.filters, [p]: emptyFilter() },
+      filterStash: { ...s.filterStash, [p]: {} },
     })),
 
   setSelectedIndex: (p, i) => set((s) => patchPane(s, p, { selectedIndex: Math.max(0, i) })),
@@ -233,7 +238,17 @@ export const useAppStore = create<AppState>((set) => ({
     }),
 
   setMode: (p, mode) => set((s) => patchPane(s, p, { mode })),
-  setView: (p, view) => set((s) => patchPane(s, p, { view, selectedIndex: 0 })),
+  setView: (p, view) =>
+    set((s) => {
+      const prev = s.panes[p].view;
+      if (prev === view) return patchPane(s, p, { view, selectedIndex: 0 });
+      // Each view keeps its own filter: stash the outgoing view's, restore the incoming view's.
+      return {
+        ...patchPane(s, p, { view, selectedIndex: 0 }),
+        filters: { ...s.filters, [p]: s.filterStash[p][view] ?? emptyFilter() },
+        filterStash: { ...s.filterStash, [p]: { ...s.filterStash[p], [prev]: s.filters[p] } },
+      };
+    }),
   setEditDraft: (p, editDraft) => set((s) => patchPane(s, p, { editDraft })),
 
   startPreview: (targetPane) => set((s) => patchPane(s, targetPane, { mode: "preview" })),

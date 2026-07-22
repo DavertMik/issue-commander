@@ -28,6 +28,7 @@ import {
   emptyDateRange,
   emptyFilter,
   isFilterActive,
+  sanitizeFilter,
   type DateRange,
   type PaneFilter,
   type StateFilter,
@@ -230,7 +231,8 @@ function FilterBody({
 
   function apply() {
     if (draftView !== view) setView(pane, draftView);
-    setFilter(pane, draft);
+    // The draft may have been built in the PR view — drop PR-only facets for Issues.
+    setFilter(pane, sanitizeFilter(draft, draftView));
     onClose();
   }
 

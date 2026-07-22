@@ -11,6 +11,8 @@ export interface IssuesQuery {
   rows: IssueRow[];
   lastColumn: LastColumn | null;
   isLoading: boolean;
+  /** Any load in flight — including a new source/state/view fetching behind stale placeholder rows. */
+  isFetching: boolean;
   isError: boolean;
   error: unknown;
   refetch: () => void;
@@ -51,6 +53,7 @@ export function useIssues(
     rows: q.data?.pages.flatMap((p) => p.rows) ?? [],
     lastColumn: q.data?.pages[0]?.lastColumn ?? null,
     isLoading: q.isLoading,
+    isFetching: q.isFetching,
     isError: q.isError,
     error: q.error,
     refetch,

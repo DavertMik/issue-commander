@@ -20,7 +20,8 @@ import { useIssues } from "@/hooks/use-issues";
 import { useIssueActions } from "@/hooks/use-issue-mutations";
 import { canCopy, canMove } from "@/lib/transfer";
 import { contextColumn } from "@/lib/source";
-import { applyFilters, emptyFilter, type PaneFilter } from "@/lib/filters";
+import { applyFilters, emptyFilter, sanitizeFilter, type PaneFilter } from "@/lib/filters";
+import { prefetchSources } from "@/hooks/use-sources";
 import { DEFAULT_THEME, themeById, THEME_STORAGE_KEY } from "@/lib/themes";
 import type { ActionId } from "@/lib/hotkeys";
 import type { AppConfig, IssueRow, PaneSource, PaneView, RepoRef } from "@/lib/types";
@@ -73,6 +74,7 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
 
   useEffect(() => {
     try {
+      const views: Record<PaneId, PaneView> = { pane1: "issues", pane2: "issues" };
       const raw = localStorage.getItem(SOURCES_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as {
@@ -83,19 +85,35 @@ export function TotalCommander({ org, defaults }: { org: string | null; defaults
         // Restore sources first (setSource resets that pane's view + filter), then views, then filters.
         if (saved.pane1) setSource("pane1", saved.pane1);
         if (saved.pane2) setSource("pane2", saved.pane2);
-        if (saved.views?.pane1 && saved.pane1?.kind === "repo") setView("pane1", saved.views.pane1);
-        if (saved.views?.pane2 && saved.pane2?.kind === "repo") setView("pane2", saved.views.pane2);
+        if (saved.views?.pane1 && saved.pane1?.kind === "repo") {
+          views.pane1 = saved.views.pane1;
+          setView("pane1", views.pane1);
+        }
+        if (saved.views?.pane2 && saved.pane2?.kind === "repo") {
+          views.pane2 = saved.views.pane2;
+          setView("pane2", views.pane2);
+        }
       }
       const rawF = localStorage.getItem(FILTERS_KEY);
       if (rawF) {
         const saved = JSON.parse(rawF) as { pane1?: Partial<PaneFilter>; pane2?: Partial<PaneFilter> };
-        if (saved.pane1) setFilter("pane1", { ...emptyFilter(), ...saved.pane1 });
-        if (saved.pane2) setFilter("pane2", { ...emptyFilter(), ...saved.pane2 });
+        // Sanitize: a filter saved while the PR tab was active must not bring PR-only
+        // facets ("merged" state, branches) into a pane restored to the Issues view.
+        if (saved.pane1) setFilter("pane1", sanitizeFilter({ ...emptyFilter(), ...saved.pane1 }, views.pane1));
+        if (saved.pane2) setFilter("pane2", sanitizeFilter({ ...emptyFilter(), ...saved.pane2 }, views.pane2));
       }
     } catch {
       // ignore malformed/unavailable storage
     }
   }, [setSource, setView, setFilter]);
+
+  // Warm the source/option lists (repos, projects, milestones, issue types, viewer)
+  // shortly after first paint so F1/F2, F7, Settings and "@me" open with data ready.
+  // The option-cache timestamps make this free while the cached copies are fresh.
+  useEffect(() => {
+    const t = setTimeout(() => prefetchSources(qc), 1000);
+    return () => clearTimeout(t);
+  }, [qc]);
 
   useEffect(() => {
     // Skip the initial mount write so we don't clobber saved values before restore.

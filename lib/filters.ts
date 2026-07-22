@@ -1,4 +1,4 @@
-import type { IssueRow } from "@/lib/types";
+import type { IssueRow, PaneView } from "@/lib/types";
 
 // "merged" is a PR-view-only pseudo-state (GitHub lists merged PRs as closed); see sourceToQuery.
 export type StateFilter = "open" | "closed" | "merged" | "all";
@@ -49,6 +49,15 @@ export const emptyFilter = (): PaneFilter => ({
   sortBy: "none",
   sortDir: "asc",
 });
+
+/** Strip PR-only facets (the "merged" pseudo-state, target branches) from a filter
+ * used in the Issues view, where they'd silently exclude every row. Guards filters
+ * that were captured while the Pull Requests tab was active (persisted or drafted). */
+export function sanitizeFilter(f: PaneFilter, view: PaneView): PaneFilter {
+  if (view === "pulls") return f;
+  if (f.state !== "merged" && f.branches.length === 0) return f;
+  return { ...f, state: f.state === "merged" ? "open" : f.state, branches: [] };
+}
 
 /** True when the range constrains anything for the current state. "All" has no
  * contextual date, so a set range is inert there and shouldn't read as active. */

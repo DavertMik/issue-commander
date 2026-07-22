@@ -172,6 +172,9 @@ export function Pane({
       );
     }
     if (rows.length === 0) {
+      // Zero rows while a load is in flight may just be a stale-empty placeholder from
+      // the previous source/state/view — show skeletons, never a premature empty state.
+      if (query.isFetching) return <PaneLoading />;
       const noun = isPulls ? "pull requests" : "issues";
       return allRows.length > 0 ? (
         <PaneMessage
